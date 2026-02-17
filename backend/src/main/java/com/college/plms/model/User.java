@@ -26,6 +26,9 @@ public class User {
     @Column(name = "full_name")
     private String fullName;
 
+    @Column(name = "department")
+    private String department;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -43,6 +46,8 @@ public class User {
     public void setRole(Role role) { this.role = role; }
     public String getFullName() { return fullName; }
     public void setFullName(String fullName) { this.fullName = fullName; }
+    public String getDepartment() { return department; }
+    public void setDepartment(String department) { this.department = department; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }

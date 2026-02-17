@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +8,7 @@
     <link rel="stylesheet" href="css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
+
 <body class="login-body">
     <div class="login-container">
         <div class="login-card">
@@ -14,7 +16,7 @@
                 <h1>PLMS</h1>
                 <p>Mini Project Lifecycle Management</p>
             </div>
-            
+
             <div class="tabs">
                 <button class="tab-btn active" onclick="switchTab('login')">Login</button>
                 <button class="tab-btn" onclick="switchTab('register')">Register</button>
@@ -42,6 +44,10 @@
                     <input type="email" id="regEmail" required placeholder="Email Address">
                 </div>
                 <div class="form-group">
+                    <label>Department (e.g. CSE, ECE)</label>
+                    <input type="text" id="regDept" required placeholder="Department">
+                </div>
+                <div class="form-group">
                     <label>Username</label>
                     <input type="text" id="regUsername" required placeholder="Username">
                 </div>
@@ -59,11 +65,12 @@
                 </div>
                 <button type="submit" class="btn-primary">Register</button>
             </form>
-            
+
             <div id="authMessage" class="message"></div>
         </div>
     </div>
 
     <script src="js/auth.js"></script>
 </body>
+
 </html>

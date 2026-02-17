@@ -62,7 +62,12 @@ async function renderDashboard() {
 async function renderProjects() {
     const container = document.getElementById('viewContainer');
     const res = await fetch(`${API_BASE}/projects`, { headers: authHeader() });
-    const projects = await res.json();
+    let projects = await res.json();
+
+    // Faculty only sees SUBMITTED projects assigned to them
+    if (user.role === 'FACULTY') {
+        projects = projects.filter(p => p.status === 'SUBMITTED' && p.faculty && p.faculty.id === user.id);
+    }
 
     let btnHtml = '';
     if (user.role === 'STUDENT') {
@@ -88,19 +93,22 @@ async function renderProjects() {
                     </tr>
                 </thead>
                 <tbody>
-                    ${projects.map(p => `
+                    ${projects.length === 0 ? '<tr><td colspan="7" style="text-align:center; padding: 2rem;">No projects found</td></tr>' : projects.map(p => `
                         <tr>
                             <td>${p.title}</td>
                             <td>${p.domain}</td>
                             <td>${p.student.fullName}</td>
                             <td>${p.faculty ? p.faculty.fullName : '<span style="color: var(--warning)">Not Assigned</span>'}</td>
                             <td><span class="status-badge status-${p.stage}">${p.stage}</span></td>
-                            <td>${p.status}</td>
+                            <td><span class="status-badge ${p.status === 'SUBMITTED' ? 'status-SUBMISSION' : ''}">${p.status}</span></td>
                             <td>
-                                <button class="btn-sm" onclick="viewProject(${p.id})">View</button>
-                                ${user.role === 'STUDENT' ? `<button class="btn-sm" onclick="openUploadModal(${p.id})">Upload</button>` : ''}
+                                <button class="btn-sm" onclick="viewProjectDetails(${p.id})">View Details</button>
+                                ${user.role === 'STUDENT' && p.status !== 'SUBMITTED' ? `
+                                    <button class="btn-sm" onclick="openUploadModal(${p.id})">Upload</button>
+                                    <button class="btn-sm" style="background: var(--accent); color: white;" onclick="submitForReview(${p.id})">Submit for Review</button>
+                                ` : ''}
                                 ${user.role === 'ADMIN' && !p.faculty ? `<button class="btn-sm" onclick="assignFaculty(${p.id})">Assign Faculty</button>` : ''}
-                                ${user.role === 'FACULTY' && p.faculty && p.faculty.id === user.id ? `
+                                ${user.role === 'FACULTY' && p.status === 'SUBMITTED' ? `
                                     <button class="btn-sm" onclick="approveStage(${p.id})">Approve</button>
                                     <button class="btn-sm" onclick="rejectStage(${p.id})">Reject</button>
                                 ` : ''}
@@ -280,21 +288,126 @@ async function markRead(id) {
     checkNotifications();
 }
 
-function viewProject(id) {
-    // For now, just show an alert or simple modal with details
-    // In a real app, this would route to a detail view
-    fetch(`${API_BASE}/projects/${id}`, { headers: authHeader() })
-        .then(res => res.json())
-        .then(p => {
-            alert(`
-                Title: ${p.title}
-                Domain: ${p.domain}
-                Description: ${p.description}
-                Stage: ${p.stage}
-                Status: ${p.status}
-                Faculty: ${p.faculty ? p.faculty.fullName : 'Not Assigned'}
-            `);
-        });
+async function viewProjectDetails(id) {
+    const p = await fetch(`${API_BASE}/projects/${id}`, { headers: authHeader() }).then(res => res.json());
+    const docs = await fetch(`${API_BASE}/projects/${id}/documents`, { headers: authHeader() }).then(res => res.json());
+
+    const container = document.getElementById('viewContainer');
+    container.innerHTML = `
+        <div>
+            <button class="btn-sm" onclick="renderProjects()" style="margin-bottom: 1rem;">← Back to Projects</button>
+            <h2>${p.title}</h2>
+            <div style="background: var(--bg-card); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 1.5rem;">
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
+                    <div><strong>Domain:</strong> ${p.domain}</div>
+                    <div><strong>Stage:</strong> <span class="status-badge status-${p.stage}">${p.stage}</span></div>
+                    <div><strong>Status:</strong> ${p.status}</div>
+                    <div><strong>Student:</strong> ${p.student.fullName}</div>
+                    <div><strong>Faculty:</strong> ${p.faculty ? p.faculty.fullName : 'Not Assigned'}</div>
+                </div>
+                <div style="margin-top: 1rem;"><strong>Description:</strong><br>${p.description}</div>
+            </div>
+            
+            <h3>Documents</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Filename</th>
+                            <th>Version</th>
+                            <th>Uploaded At</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${docs.length === 0 ? '<tr><td colspan="3" style="text-align:center; padding: 2rem;">No documents uploaded</td></tr>' : docs.map(d => `
+                            <tr>
+                                <td>${d.filename}</td>
+                                <td>v${d.version}</td>
+                                <td>${new Date(d.uploadedAt).toLocaleString()}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+            
+            ${user.role === 'STUDENT' && p.status !== 'SUBMITTED' ? `
+                <div style="margin-top: 1.5rem;">
+                    <button class="btn-sm" onclick="openUploadModal(${p.id})">Upload Document</button>
+                    <button class="btn-primary" style="width: auto;" onclick="submitForReview(${p.id})">Submit for Review</button>
+                </div>
+            ` : ''}
+            
+            ${user.role === 'FACULTY' && p.status === 'SUBMITTED' ? `
+                <div style="margin-top: 1.5rem;">
+                    ${p.stage === 'SUBMISSION' ? `
+                        <button class="btn-primary" style="width: auto;" onclick="openRatingModal(${p.id})">Approve & Rate Project</button>
+                    ` : `
+                        <button class="btn-sm" onclick="approveStage(${p.id})">Approve Stage</button>
+                    `}
+                    <button class="btn-sm" onclick="rejectStage(${p.id})">Reject Stage</button>
+                </div>
+            ` : ''}
+            
+            ${p.stage === 'COMPLETED' ? `
+                <div style="margin-top: 1.5rem; background: rgba(52, 211, 153, 0.1); padding: 1rem; border-radius: 8px; border: 1px solid var(--success);">
+                    <h3 style="color: var(--success); margin-bottom: 0.5rem;">Final Rating</h3>
+                    <div id="ratingDisplay">Loading rating...</div>
+                </div>
+            ` : ''}
+        </div>
+    `;
+
+    if (p.stage === 'COMPLETED') {
+        fetch(`${API_BASE}/projects/${id}/rating`, { headers: authHeader() })
+            .then(res => res.json())
+            .then(r => {
+                document.getElementById('ratingDisplay').innerHTML = `
+                    <div style="font-size: 1.5rem; font-weight: bold; margin-bottom: 0.5rem;">${'⭐'.repeat(r.rating)} (${r.rating}/5)</div>
+                    <div><strong>Feedback:</strong> ${r.feedback}</div>
+                `;
+            }).catch(() => {
+                document.getElementById('ratingDisplay').innerHTML = 'Rating information not available.';
+            });
+    }
+}
+
+async function openRatingModal(projectId) {
+    const score = prompt('Enter Rating (1-5):');
+    if (!score || score < 1 || score > 5) {
+        alert('Please enter a valid rating between 1 and 5');
+        return;
+    }
+    const feedback = prompt('Enter Final Remarks/Feedback:');
+    if (!feedback) return;
+
+    const res = await fetch(`${API_BASE}/projects/${projectId}/rate`, {
+        method: 'POST',
+        headers: { ...authHeader(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rating: parseInt(score), feedback })
+    });
+
+    if (res.ok) {
+        alert('Project approved and rated successfully!');
+        renderProjects();
+    } else {
+        alert('Failed to rate project');
+    }
+}
+
+async function submitForReview(id) {
+    if (!confirm('Submit this project for faculty review?')) return;
+
+    const res = await fetch(`${API_BASE}/projects/${id}/submit`, {
+        method: 'POST',
+        headers: authHeader()
+    });
+
+    if (res.ok) {
+        alert('Project submitted for review!');
+        renderProjects();
+    } else {
+        alert('Failed to submit project');
+    }
 }
 
 async function assignFaculty(projectId) {
@@ -345,7 +458,8 @@ window.renderProjects = renderProjects;
 window.renderAnalytics = renderAnalytics;
 window.logout = logout;
 window.toggleNotifications = toggleNotifications;
-window.viewProject = viewProject;
+window.viewProjectDetails = viewProjectDetails;
+window.submitForReview = submitForReview;
 window.openModal = openModal;
 window.closeModal = closeModal;
 window.createProject = createProject;
@@ -353,4 +467,5 @@ window.openUploadModal = openUploadModal;
 window.approveStage = approveStage;
 window.rejectStage = rejectStage;
 window.assignFaculty = assignFaculty;
+window.openRatingModal = openRatingModal;
 

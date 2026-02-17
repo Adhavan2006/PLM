@@ -5,6 +5,7 @@ import com.college.plms.model.Project;
 import com.college.plms.model.User;
 import com.college.plms.security.UserDetailsImpl;
 import com.college.plms.service.ProjectService;
+import com.college.plms.repository.RatingRepository;
 import com.college.plms.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -26,6 +27,9 @@ public class ProjectController {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private RatingRepository ratingRepository;
 
     @PostMapping
     @PreAuthorize("hasAuthority('STUDENT')")
@@ -101,5 +105,25 @@ public class ProjectController {
     public ResponseEntity<?> assignFacultyById(@PathVariable Long id, @PathVariable Long facultyId) {
         projectService.assignFaculty(id, facultyId);
         return ResponseEntity.ok("Faculty Assigned");
+    }
+    
+    @PostMapping("/{id}/submit")
+    @PreAuthorize("hasAuthority('STUDENT')")
+    public ResponseEntity<?> submitForReview(@PathVariable Long id) {
+        projectService.submitForReview(id);
+        return ResponseEntity.ok("Project submitted for review");
+    }
+
+    @PostMapping("/{id}/rate")
+    @PreAuthorize("hasAuthority('FACULTY')")
+    public ResponseEntity<?> rateProject(@PathVariable Long id, @RequestBody Map<String, Object> payload, Authentication authentication) {
+        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+        projectService.rateProject(id, (Integer)payload.get("rating"), (String)payload.get("feedback"), userDetails.getId());
+        return ResponseEntity.ok("Project Rated");
+    }
+
+    @GetMapping("/{id}/rating")
+    public ResponseEntity<?> getProjectRating(@PathVariable Long id) {
+        return ResponseEntity.ok(ratingRepository.findByProjectId(id).orElseThrow());
     }
 }

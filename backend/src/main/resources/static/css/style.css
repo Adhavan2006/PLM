@@ -249,6 +249,29 @@ textarea:focus {
     border-radius: 10px;
 }
 
+.notification-dropdown {
+    display: none;
+    position: absolute;
+    top: 40px;
+    right: 0;
+    width: 350px;
+    max-height: 400px;
+    overflow-y: auto;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+}
+
+.notification-dropdown h4 {
+    padding: 1rem;
+    margin: 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 1rem;
+}
+
+
 .view-container {
     padding: 2rem;
 }

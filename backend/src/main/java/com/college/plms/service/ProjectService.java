@@ -4,6 +4,7 @@ import com.college.plms.model.*;
 import com.college.plms.repository.ApprovalRepository;
 import com.college.plms.repository.DocumentRepository;
 import com.college.plms.repository.ProjectRepository;
+import com.college.plms.repository.RatingRepository;
 import com.college.plms.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,9 @@ public class ProjectService {
 
     @Autowired
     private ApprovalRepository approvalRepository;
+
+    @Autowired
+    private RatingRepository ratingRepository;
 
     @Autowired
     private UserRepository userRepository;
@@ -107,6 +111,27 @@ public class ProjectService {
     public List<Document> getProjectDocuments(Long projectId) {
         return documentRepository.findByProjectId(projectId);
     }
+    
+    @Transactional
+    public Project submitForReview(Long projectId) {
+        Project project = getProjectById(projectId);
+        
+        if (project.getFaculty() == null) {
+            throw new RuntimeException("Cannot submit: No faculty assigned to this project");
+        }
+        
+        project.setStatus(ProjectStatus.SUBMITTED);
+        Project saved = projectRepository.save(project);
+        
+        // Notify faculty about submission
+        notificationService.createNotification(
+            project.getFaculty(), 
+            "Project '" + project.getTitle() + "' submitted for review"
+        );
+        
+        return saved;
+    }
+
 
     @Transactional
     public Project approveStage(Long projectId, Long approverId, String remarks) {
@@ -155,6 +180,27 @@ public class ProjectService {
         Project saved = projectRepository.save(project);
         
         notificationService.createNotification(project.getStudent(), "Project stage " + approval.getStage() + " rejected. Remarks: " + remarks);
+        
+        return saved;
+    }
+
+    @Transactional
+    public Project rateProject(Long projectId, int score, String feedback, Long facultyId) {
+        Project project = getProjectById(projectId);
+        User faculty = userRepository.findById(facultyId).orElseThrow();
+        
+        Rating rating = new Rating();
+        rating.setProject(project);
+        rating.setFaculty(faculty);
+        rating.setRating(score);
+        rating.setFeedback(feedback);
+        ratingRepository.save(rating);
+        
+        project.setStage(ProjectStage.COMPLETED);
+        project.setStatus(ProjectStatus.APPROVED);
+        Project saved = projectRepository.save(project);
+        
+        notificationService.createNotification(project.getStudent(), "Your project '" + project.getTitle() + "' has been rated: " + score + "/5 by " + faculty.getFullName());
         
         return saved;
     }

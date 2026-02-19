@@ -54,7 +54,10 @@
                 <ion-icon name="search-outline"></ion-icon>
                 <input type="text" placeholder="Search projects...">
             </div>
-            <div class="top-actions">
+            <div class="top-actions" style="display: flex; gap: 1rem; align-items: center;">
+                <div class="theme-toggle" onclick="toggleTheme()" style="cursor: pointer; font-size: 1.5rem;">
+                    <ion-icon id="themeIcon" name="sunny-outline"></ion-icon>
+                </div>
                 <div class="notification-icon" onclick="toggleNotifications()">
                     <ion-icon name="notifications-outline"></ion-icon>
                     <span class="badge" id="notifBadge" style="display:none">0</span>

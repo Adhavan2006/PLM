@@ -12,6 +12,16 @@
     --sidebar-width: 250px;
 }
 
+[data-theme="light"] {
+    --bg-dark: #f8fafc;
+    --bg-card: #ffffff;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --border: #e2e8f0;
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -329,7 +339,7 @@ td {
 }
 
 th {
-    background: rgba(0, 0, 0, 0.2);
+    background: var(--bg-dark);
     color: var(--text-secondary);
     font-weight: 600;
 }
@@ -468,7 +478,7 @@ th {
     white-space: pre-wrap;
     line-height: 1.6;
     color: var(--text-secondary);
-    background: rgba(0, 0, 0, 0.2);
+    background: var(--bg-dark);
     padding: 1rem;
     border-radius: 8px;
     border: 1px solid var(--border);
@@ -490,3 +500,5 @@ th {
     background-position: right 1rem center;
     background-size: 1em;
 }
+.form-group select { background-color: var(--bg-dark); }
+

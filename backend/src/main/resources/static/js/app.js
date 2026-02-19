@@ -10,7 +10,30 @@ document.getElementById('navUser').textContent = user.fullName;
 document.getElementById('navRole').textContent = user.role;
 document.getElementById('navAvatar').textContent = user.fullName.charAt(0).toUpperCase();
 
+// Theme Logic
+function initTheme() {
+    const theme = localStorage.getItem('theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', theme);
+    updateThemeIcon(theme);
+}
+
+function toggleTheme() {
+    const current = document.documentElement.getAttribute('data-theme');
+    const newTheme = current === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    updateThemeIcon(newTheme);
+}
+
+function updateThemeIcon(theme) {
+    const icon = document.getElementById('themeIcon');
+    if (icon) {
+        icon.setAttribute('name', theme === 'light' ? 'moon-outline' : 'sunny-outline');
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+    initTheme();
     renderDashboard();
     checkNotifications();
 
@@ -91,20 +114,33 @@ async function renderProjects() {
 
     let contentHtml = '';
 
-    if (user.role === 'FACULTY') {
-        const pending = projects.filter(p => !p.isFacultyAccepted);
-        const active = projects.filter(p => p.isFacultyAccepted && p.stage !== 'COMPLETED');
-        const history = projects.filter(p => p.stage === 'COMPLETED');
+    if (user.role === 'FACULTY' || user.role === 'STUDENT') {
+        const isFaculty = user.role === 'FACULTY';
+
+        let pending = [], active = [], history = [];
+
+        if (isFaculty) {
+            pending = projects.filter(p => !p.isFacultyAccepted);
+            active = projects.filter(p => p.isFacultyAccepted && p.stage !== 'COMPLETED');
+            history = projects.filter(p => p.stage === 'COMPLETED');
+        } else {
+            // Student Logic
+            active = projects.filter(p => p.stage !== 'COMPLETED');
+            history = projects.filter(p => p.stage === 'COMPLETED');
+        }
 
         // Tab Navigation
         contentHtml += `
             <div class="projects-header">
-                <h2>Faculty Dashboard</h2>
+                <h2>${isFaculty ? 'Faculty Dashboard' : 'My Projects'}</h2>
+                ${!isFaculty ? `<button class="btn-primary" style="width: auto" onclick="openModal('projectModal')">+ New Project</button>` : ''}
             </div>
             <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border);">
+                ${isFaculty ? `
                 <button class="tab-btn ${activeTab === 'pending' ? 'active' : ''}" onclick="switchTab('pending')">
                     Pending Requests (${pending.length})
-                </button>
+                </button>` : ''}
+                
                 <button class="tab-btn ${activeTab === 'active' ? 'active' : ''}" onclick="switchTab('active')">
                     Active Projects (${active.length})
                 </button>
@@ -115,23 +151,19 @@ async function renderProjects() {
         `;
 
         let displayProjects = [];
-        if (activeTab === 'pending') displayProjects = pending;
+        if (activeTab === 'pending' && isFaculty) displayProjects = pending;
         else if (activeTab === 'active') displayProjects = active;
-        else displayProjects = history;
+        else if (activeTab === 'history') displayProjects = history;
+        // Default fallbacks
+        else if (!isFaculty && activeTab === 'pending') { activeTab = 'active'; displayProjects = active; }
 
-        contentHtml += generateProjectTable(displayProjects, true);
+        contentHtml += generateProjectTable(displayProjects, isFaculty);
 
     } else {
-        // Student / Admin View
-        let btnHtml = '';
-        if (user.role === 'STUDENT') {
-            btnHtml = `<button class="btn-primary" style="width: auto" onclick="openModal('projectModal')">+ New Project</button>`;
-        }
-
+        // Admin View
         contentHtml += `
             <div class="projects-header">
                 <h2>Projects</h2>
-                ${btnHtml}
             </div>
             ${generateProjectTable(projects, false)}
         `;
@@ -174,10 +206,10 @@ function generateProjectTable(projects, isFaculty) {
                             <td>
                                 <button class="btn-sm" onclick="viewProjectDetails(${p.id})">View Details</button>
                                 
-                                ${user.role === 'STUDENT' && p.status !== 'SUBMITTED' ? `
+                                ${user.role === 'STUDENT' && p.stage !== 'COMPLETED' ? `
                                     <button class="btn-sm" onclick="openUploadModal(${p.id})">Upload</button>
                                     ${!p.faculty ? `<button class="btn-sm" onclick="openRequestFacultyModal(${p.id})">Request Faculty</button>` : ''}
-                                    ${p.faculty && p.isFacultyAccepted ? `<button class="btn-sm" style="background: var(--accent); color: white;" onclick="submitForReview(${p.id})">Submit for Review</button>` : ''}
+                                    ${p.faculty && p.isFacultyAccepted && p.status !== 'SUBMITTED' ? `<button class="btn-sm" style="background: var(--accent); color: white;" onclick="submitForReview(${p.id})">Submit for Review</button>` : ''}
                                 ` : ''}
 
                                 ${user.role === 'ADMIN' && !p.faculty ? `<button class="btn-sm" onclick="assignFaculty(${p.id})">Assign Faculty</button>` : ''}
@@ -422,6 +454,7 @@ async function markRead(id) {
 async function viewProjectDetails(id) {
     const p = await fetch(`${API_BASE}/projects/${id}`, { headers: authHeader() }).then(res => res.json());
     const docs = await fetch(`${API_BASE}/projects/${id}/documents`, { headers: authHeader() }).then(res => res.json());
+    const approvals = await fetch(`${API_BASE}/projects/${id}/approvals`, { headers: authHeader() }).then(res => res.json());
 
     const container = document.getElementById('viewContainer');
     container.innerHTML = `
@@ -460,13 +493,60 @@ async function viewProjectDetails(id) {
                     </tbody>
                 </table>
             </div>
-            
+
+            <h3 style="margin-top: 2rem; margin-bottom: 1rem;">Stage History & Remarks</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Stage</th>
+                            <th>Status</th>
+                            <th>Approver</th>
+                            <th>Remarks</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${approvals.length === 0 ? '<tr><td colspan="5" style="text-align:center; padding: 2rem;">No history available</td></tr>' : approvals.map(a => `
+                            <tr>
+                                <td><span class="status-badge status-${a.stage}">${a.stage}</span></td>
+                                <td><span class="status-badge" style="background: ${a.status === 'REJECTED' ? 'var(--danger)' : 'var(--success)'}; color: white;">${a.status}</span></td>
+                                <td>${a.approver.fullName}</td>
+                                <td>${a.remarks || '-'}</td>
+                                <td>${new Date(a.timestamp).toLocaleString()}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+
+
             ${user.role === 'STUDENT' && p.status !== 'SUBMITTED' ? `
                 <div style="margin-top: 1.5rem;">
                     <button class="btn-sm" onclick="openUploadModal(${p.id})">Upload Document</button>
                     ${!p.faculty ? `<button class="btn-sm" onclick="openRequestFacultyModal(${p.id})">Request Faculty</button>` : ''}
                     ${p.faculty && !p.isFacultyAccepted ? `<span style="color: var(--warning); margin-left: 1rem;">Waiting for faculty acceptance</span>` : ''}
                     ${p.faculty && p.isFacultyAccepted ? `<button class="btn-primary" style="width: auto;" onclick="submitForReview(${p.id})">Submit for Review</button>` : ''}
+                </div>
+            ` : ''}
+            
+            ${user.role === 'FACULTY' && p.status === 'SUBMITTED' ? `
+                <div style="margin-top: 1.5rem;">
+                    ${p.stage === 'SUBMISSION' ? `
+                        <button class="btn-primary" style="width: auto;" onclick="openRatingModal(${p.id})">Approve & Rate Project</button>
+                    ` : `
+                        <button class="btn-sm" onclick="approveStage(${p.id})">Approve Stage</button>
+                    `}
+                    <button class="btn-sm" onclick="rejectStage(${p.id})">Reject Stage</button>
+                </div>
+            ` : ''}
+            
+            ${user.role === 'STUDENT' && p.stage !== 'COMPLETED' ? `
+                <div style="margin-top: 1.5rem;">
+                    <button class="btn-sm" onclick="openUploadModal(${p.id})">Upload Document</button>
+                    ${!p.faculty ? `<button class="btn-sm" onclick="openRequestFacultyModal(${p.id})">Request Faculty</button>` : ''}
+                    ${p.faculty && !p.isFacultyAccepted ? `<span style="color: var(--warning); margin-left: 1rem;">Waiting for faculty acceptance</span>` : ''}
+                    ${p.faculty && p.isFacultyAccepted && p.status !== 'SUBMITTED' ? `<button class="btn-primary" style="width: auto;" onclick="submitForReview(${p.id})">Submit for Review</button>` : ''}
                 </div>
             ` : ''}
             
@@ -764,4 +844,6 @@ window.downloadDocument = downloadDocument;
 window.showSuccessModal = showSuccessModal;
 window.showErrorModal = showErrorModal;
 window.showConfirmModal = showConfirmModal;
+window.showConfirmModal = showConfirmModal;
 window.showInputModal = showInputModal;
+window.toggleTheme = toggleTheme;

@@ -1,5 +1,6 @@
 package com.college.plms.controller;
 
+import com.college.plms.model.Approval;
 import com.college.plms.model.Document;
 import com.college.plms.model.Project;
 import com.college.plms.model.User;
@@ -84,6 +85,11 @@ public class ProjectController {
         return ResponseEntity.ok()
                 .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"")
                 .body(resource);
+    }
+
+    @GetMapping("/{id}/approvals")
+    public ResponseEntity<List<Approval>> getApprovals(@PathVariable Long id) {
+        return ResponseEntity.ok(projectService.getProjectApprovals(id));
     }
 
     @PostMapping("/{id}/approve")

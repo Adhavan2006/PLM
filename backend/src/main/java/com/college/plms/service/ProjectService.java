@@ -265,6 +265,10 @@ public class ProjectService {
         return fileStorageService.loadAsResource(document.getFilePath());
     }
 
+    public List<Approval> getProjectApprovals(Long projectId) {
+        return approvalRepository.findByProjectId(projectId);
+    }
+
     private ProjectStage getNextStage(ProjectStage current) {
         switch (current) {
             case IDEA: return ProjectStage.DESIGN;

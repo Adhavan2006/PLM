@@ -85,8 +85,43 @@ async function renderDashboard() {
     const res = await fetch(`${API_BASE}/analytics`, { headers: authHeader() });
     const stats = await res.json();
 
+    // Fetch pending invitations (for students)
+    let invHtml = '';
+    if (user.role === 'STUDENT') {
+        const invRes = await fetch(`${API_BASE}/projects/invitations/pending`, { headers: authHeader() });
+        if (invRes.ok) {
+            const invitations = await invRes.json();
+            if (invitations.length > 0) {
+                invHtml = `
+                    <div style="background: var(--bg-card); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--accent); margin-bottom: 2rem;">
+                        <h3 style="color: var(--accent); margin-bottom: 1rem;">Pending Team Invitations</h3>
+                        <div style="display: grid; gap: 1rem;">
+                            ${invitations.map(inv => `
+                                <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(59, 130, 246, 0.1); padding: 1rem; border-radius: 8px;">
+                                    <div>
+                                        <strong>${inv.project.title}</strong><br>
+                                        <small>Invited by: ${inv.inviter.fullName}</small>
+                                    </div>
+                                    <div style="display: flex; gap: 0.5rem;">
+                                        <button class="btn-sm" style="background: var(--success); color: white;" onclick="acceptInvitation(${inv.id})">Accept</button>
+                                        <button class="btn-sm" style="background: var(--danger); color: white;" onclick="rejectInvitation(${inv.id})">Reject</button>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+        }
+    }
+
+    const exportBtn = (user.role === 'ADMIN' || user.role === 'FACULTY')
+        ? `<button class="btn-sm" onclick="exportProjects()" style="margin-top: 2rem; background: var(--secondary); color: white;">Download Project Report (CSV)</button>`
+        : '';
+
     container.innerHTML = `
         <h2 style="margin-bottom: 1.5rem">Dashboard Overview</h2>
+        ${invHtml}
         <div class="grid-cols-3">
             <div class="stat-card">
                 <h3>Total Projects</h3>
@@ -101,7 +136,7 @@ async function renderDashboard() {
                 <div class="value" style="color: var(--success)">${stats.completedProjects}</div>
             </div>
         </div>
-        <!-- Add charts later via Chart.js if needed -->
+        ${exportBtn}
     `;
 }
 
@@ -252,11 +287,18 @@ async function renderAnalytics() {
             stats.pendingRequests = projects.filter(p => !p.isFacultyAccepted).length;
         }
 
-        // Calculate distribution
+        // Calculate distribution for charts locally if not admin (or rely on backend if endpoint supports it)
         stats.projectsByStage = {};
-        ['IDEA', 'DESIGN', 'DEVELOPMENT', 'TESTING', 'SUBMISSION', 'COMPLETED'].forEach(stage => {
-            stats.projectsByStage[stage] = projects.filter(p => p.stage === stage).count; // wait count is undefined on array filter
+        const stages = ['IDEA', 'DESIGN', 'DEVELOPMENT', 'TESTING', 'SUBMISSION', 'COMPLETED'];
+        stages.forEach(stage => {
             stats.projectsByStage[stage] = projects.filter(p => p.stage === stage).length;
+        });
+
+        // Domain calc for local
+        stats.projectsByDomain = {};
+        projects.forEach(p => {
+            const d = p.domain || 'Unknown';
+            stats.projectsByDomain[d] = (stats.projectsByDomain[d] || 0) + 1;
         });
     }
 
@@ -272,7 +314,7 @@ async function renderAnalytics() {
 
     container.innerHTML = `
         <h2 style="margin-bottom: 1.5rem">Analytics Dashboard (${user.role === 'ADMIN' ? 'Global' : 'Personal'})</h2>
-        <div class="grid-cols-3">
+        <div class="grid-cols-3" style="margin-bottom: 2rem;">
             <div class="stat-card">
                 <h3>Total Projects</h3>
                 <div class="value">${stats.totalProjects}</div>
@@ -288,20 +330,94 @@ async function renderAnalytics() {
             ${extraCard}
         </div>
         
-        ${user.role === 'ADMIN' ? `
-        <div style="margin-top: 2rem; background: var(--bg-card); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border);">
-            <h3 style="margin-bottom: 1rem">Project Distribution by Stage</h3>
-             <div style="display: grid; gap: 0.5rem;">
-                <div>IDEA: ${stats.projectsByStage?.IDEA || 0}</div>
-                <div>DESIGN: ${stats.projectsByStage?.DESIGN || 0}</div>
-                <div>DEVELOPMENT: ${stats.projectsByStage?.DEVELOPMENT || 0}</div>
-                <div>TESTING: ${stats.projectsByStage?.TESTING || 0}</div>
-                <div>SUBMISSION: ${stats.projectsByStage?.SUBMISSION || 0}</div>
-                <div>COMPLETED: ${stats.projectsByStage?.COMPLETED || 0}</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+            <div class="stat-card">
+                <h3 style="margin-bottom: 1rem;">Project Status Distribution</h3>
+                <canvas id="stageChart"></canvas>
+            </div>
+            <div class="stat-card">
+                <h3 style="margin-bottom: 1rem;">Domain Distribution</h3>
+                <canvas id="domainChart"></canvas>
             </div>
         </div>
-        ` : ''}
     `;
+
+    renderCharts(stats);
+}
+
+function renderCharts(stats) {
+    const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+    const textColor = isDark ? '#94a3b8' : '#475569';
+    const gridColor = isDark ? '#334155' : '#e2e8f0';
+
+    // Stage Chart (Bar)
+    const stageCtx = document.getElementById('stageChart').getContext('2d');
+    const stages = Object.keys(stats.projectsByStage);
+    const stageData = Object.values(stats.projectsByStage);
+
+    new Chart(stageCtx, {
+        type: 'bar',
+        data: {
+            labels: stages,
+            datasets: [{
+                label: 'Projects',
+                data: stageData,
+                backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                borderColor: '#3b82f6',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { color: textColor },
+                    grid: { color: gridColor }
+                },
+                x: {
+                    ticks: { color: textColor },
+                    grid: { display: false }
+                }
+            },
+            plugins: {
+                legend: { display: false }
+            }
+        }
+    });
+
+    // Domain Chart (Pie)
+    const domainCtx = document.getElementById('domainChart').getContext('2d');
+    const domains = Object.keys(stats.projectsByDomain || {});
+    const domainData = Object.values(stats.projectsByDomain || {});
+
+    new Chart(domainCtx, {
+        type: 'doughnut',
+        data: {
+            labels: domains,
+            datasets: [{
+                data: domainData,
+                backgroundColor: [
+                    'rgba(16, 185, 129, 0.6)',
+                    'rgba(59, 130, 246, 0.6)',
+                    'rgba(245, 158, 11, 0.6)',
+                    'rgba(239, 68, 68, 0.6)',
+                    'rgba(139, 92, 246, 0.6)'
+                ],
+                borderColor: isDark ? '#1e293b' : '#ffffff',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: { color: textColor }
+                }
+            }
+        }
+    });
 }
 
 function openModal(id) {
@@ -465,6 +581,7 @@ async function viewProjectDetails(id) {
                 <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
                     <div><strong>Domain:</strong> ${p.domain}</div>
                     <div><strong>Stage:</strong> <span class="status-badge status-${p.stage}">${p.stage}</span></div>
+                    <div><strong>Deadline:</strong> ${p.stageDeadline ? new Date(p.stageDeadline).toDateString() : 'N/A'}</div>
                     <div><strong>Status:</strong> ${p.status}</div>
                     <div><strong>Student:</strong> ${p.student.fullName}</div>
                     <div><strong>Faculty:</strong> ${p.faculty ? p.faculty.fullName : 'Not Assigned'}</div>
@@ -490,6 +607,36 @@ async function viewProjectDetails(id) {
                                 <td>${new Date(d.uploadedAt).toLocaleString()}</td>
                             </tr>
                         `).join('')}
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2rem; margin-bottom: 1rem;">
+                <h3>Team Members</h3>
+                ${user.id === p.student.id ? `<button class="btn-sm" onclick="openInviteMemberModal(${p.id})">+ Invite Member</button>` : ''}
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Role</th>
+                            <th>Email</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>${p.student.fullName} <span class="status-badge" style="background: var(--accent); color: white;">Lead</span></td>
+                            <td>${p.student.role}</td>
+                            <td>${p.student.email}</td>
+                        </tr>
+                        ${p.teamMembers ? p.teamMembers.map(m => `
+                            <tr>
+                                <td>${m.fullName}</td>
+                                <td>${m.role}</td>
+                                <td>${m.email}</td>
+                            </tr>
+                        `).join('') : ''}
                     </tbody>
                 </table>
             </div>
@@ -521,52 +668,39 @@ async function viewProjectDetails(id) {
             </div>
 
 
-            ${user.role === 'STUDENT' && p.status !== 'SUBMITTED' ? `
-                <div style="margin-top: 1.5rem;">
+            <div style="margin-top: 2rem;">
+                <h3>Project Chat</h3>
+                <div id="chatContainer" style="background: var(--bg-card); padding: 1rem; border-radius: 8px; border: 1px solid var(--border); max-height: 400px; overflow-y: auto; margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                    Loading chat...
+                </div>
+                <div style="display: flex; gap: 0.5rem;">
+                    <input type="text" id="chatInput" placeholder="Type a message..." style="flex: 1; padding: 0.8rem; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text);">
+                    <button class="btn-primary" style="width: auto;" onclick="postComment(${p.id})">Send</button>
+                </div>
+            </div>
+
+            <div style="margin-top: 2rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                ${user.role === 'STUDENT' && p.stage !== 'COMPLETED' ? `
                     <button class="btn-sm" onclick="openUploadModal(${p.id})">Upload Document</button>
                     ${!p.faculty ? `<button class="btn-sm" onclick="openRequestFacultyModal(${p.id})">Request Faculty</button>` : ''}
-                    ${p.faculty && !p.isFacultyAccepted ? `<span style="color: var(--warning); margin-left: 1rem;">Waiting for faculty acceptance</span>` : ''}
-                    ${p.faculty && p.isFacultyAccepted ? `<button class="btn-primary" style="width: auto;" onclick="submitForReview(${p.id})">Submit for Review</button>` : ''}
-                </div>
-            ` : ''}
-            
-            ${user.role === 'FACULTY' && p.status === 'SUBMITTED' ? `
-                <div style="margin-top: 1.5rem;">
-                    ${p.stage === 'SUBMISSION' ? `
-                        <button class="btn-primary" style="width: auto;" onclick="openRatingModal(${p.id})">Approve & Rate Project</button>
-                    ` : `
-                        <button class="btn-sm" onclick="approveStage(${p.id})">Approve Stage</button>
-                    `}
-                    <button class="btn-sm" onclick="rejectStage(${p.id})">Reject Stage</button>
-                </div>
-            ` : ''}
-            
-            ${user.role === 'STUDENT' && p.stage !== 'COMPLETED' ? `
-                <div style="margin-top: 1.5rem;">
-                    <button class="btn-sm" onclick="openUploadModal(${p.id})">Upload Document</button>
-                    ${!p.faculty ? `<button class="btn-sm" onclick="openRequestFacultyModal(${p.id})">Request Faculty</button>` : ''}
-                    ${p.faculty && !p.isFacultyAccepted ? `<span style="color: var(--warning); margin-left: 1rem;">Waiting for faculty acceptance</span>` : ''}
+                    ${p.faculty && !p.isFacultyAccepted ? `<span style="color: var(--warning);">Waiting for faculty acceptance</span>` : ''}
                     ${p.faculty && p.isFacultyAccepted && p.status !== 'SUBMITTED' ? `<button class="btn-primary" style="width: auto;" onclick="submitForReview(${p.id})">Submit for Review</button>` : ''}
-                </div>
-            ` : ''}
-            
-            ${user.role === 'FACULTY' && p.status === 'SUBMITTED' ? `
-                <div style="margin-top: 1.5rem;">
+                ` : ''}
+                
+                ${user.role === 'FACULTY' && p.status === 'SUBMITTED' && p.faculty && p.faculty.id === user.id ? `
                     ${p.stage === 'SUBMISSION' ? `
                         <button class="btn-primary" style="width: auto;" onclick="openRatingModal(${p.id})">Approve & Rate Project</button>
                     ` : `
                         <button class="btn-sm" onclick="approveStage(${p.id})">Approve Stage</button>
                     `}
                     <button class="btn-sm" onclick="rejectStage(${p.id})">Reject Stage</button>
-                </div>
-            ` : ''}
-            
-             ${user.role === 'FACULTY' && p.faculty && p.faculty.id === user.id && !p.isFacultyAccepted ? `
-                <div style="margin-top: 1.5rem;">
+                ` : ''}
+                
+                ${user.role === 'FACULTY' && p.faculty && p.faculty.id === user.id && !p.isFacultyAccepted ? `
                     <button class="btn-primary" style="width: auto; background: var(--success);" onclick="acceptFaculty(${p.id})">Accept Invitation</button>
-                </div>
-            ` : ''}
-            
+                ` : ''}
+            </div>
+
             ${p.stage === 'COMPLETED' ? `
                 <div style="margin-top: 1.5rem; background: rgba(52, 211, 153, 0.1); padding: 1rem; border-radius: 8px; border: 1px solid var(--success);">
                     <h3 style="color: var(--success); margin-bottom: 0.5rem;">Final Rating</h3>
@@ -575,6 +709,8 @@ async function viewProjectDetails(id) {
             ` : ''}
         </div>
     `;
+
+    loadComments(p.id);
 
     if (p.stage === 'COMPLETED') {
         fetch(`${API_BASE}/projects/${id}/rating`, { headers: authHeader() })
@@ -787,6 +923,110 @@ async function downloadDocument(id, filename) {
     }
 }
 
+async function openInviteMemberModal(projectId) {
+    const key = await showInputModal('Invite Team Member', "Enter Student Username or Email:");
+    if (!key) return;
+
+    const res = await fetch(`${API_BASE}/projects/${projectId}/invite`, {
+        method: 'POST',
+        headers: { ...authHeader(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: key })
+    });
+
+    if (res.ok) {
+        showSuccessModal('Success', 'Invitation sent successfully!');
+    } else {
+        const msg = await res.text();
+        showErrorModal('Error', msg);
+    }
+}
+
+async function acceptInvitation(id) {
+    const res = await fetch(`${API_BASE}/projects/invitations/${id}/accept`, {
+        method: 'POST',
+        headers: authHeader()
+    });
+
+    if (res.ok) {
+        showSuccessModal('Joined', 'You have joined the team!');
+        renderDashboard();
+    } else {
+        showErrorModal('Error', 'Failed to accept invitation');
+    }
+}
+
+async function rejectInvitation(id) {
+    if (!await showConfirmModal('Reject', "Reject this invitation?")) return;
+
+    const res = await fetch(`${API_BASE}/projects/invitations/${id}/reject`, {
+        method: 'POST',
+        headers: authHeader()
+    });
+
+    if (res.ok) {
+        renderDashboard();
+    } else {
+        showErrorModal('Error', 'Failed to reject invitation');
+    }
+}
+
+async function exportProjects() {
+    const res = await fetch(`${API_BASE}/export/projects`, {
+        headers: authHeader()
+    });
+    if (res.ok) {
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `projects_report_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+    } else {
+        showErrorModal('Error', 'Failed to export projects');
+    }
+}
+
+async function loadComments(projectId) {
+    const res = await fetch(`${API_BASE}/projects/${projectId}/comments`, { headers: authHeader() });
+    if (!res.ok) return;
+    const comments = await res.json();
+    const container = document.getElementById('chatContainer');
+    if (comments.length === 0) {
+        container.innerHTML = '<div style="text-align: center; color: var(--text-dim); padding: 1rem;">No messages yet.</div>';
+        return;
+    }
+    container.innerHTML = comments.map(c => `
+        <div style="padding: 0.8rem; border-radius: 8px; background: ${c.user.id === user.id ? 'var(--accent)' : 'rgba(255,255,255,0.05)'}; align-self: ${c.user.id === user.id ? 'flex-end' : 'flex-start'}; max-width: 80%; color: ${c.user.id === user.id ? 'white' : 'var(--text)'};">
+            <div style="font-size: 0.75rem; font-weight: bold; margin-bottom: 0.2rem; opacity: 0.8;">${c.user.fullName}</div>
+            <div>${c.content}</div>
+            <div style="font-size: 0.65rem; text-align: right; margin-top: 0.2rem; opacity: 0.6;">${new Date(c.createdAt).toLocaleTimeString()}</div>
+        </div>
+    `).join('');
+    container.scrollTop = container.scrollHeight;
+}
+
+async function postComment(projectId) {
+    const input = document.getElementById('chatInput');
+    const content = input.value.trim();
+    if (!content) return;
+
+    const res = await fetch(`${API_BASE}/projects/${projectId}/comments`, {
+        method: 'POST',
+        headers: { ...authHeader(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content })
+    });
+
+    if (res.ok) {
+        input.value = '';
+        loadComments(projectId);
+    } else {
+        showErrorModal('Error', 'Failed to post comment');
+    }
+}
+
 // Modal State
 let confirmResolve = null;
 let inputResolve = null;
@@ -847,3 +1087,10 @@ window.showConfirmModal = showConfirmModal;
 window.showConfirmModal = showConfirmModal;
 window.showInputModal = showInputModal;
 window.toggleTheme = toggleTheme;
+window.renderCharts = renderCharts;
+window.openInviteMemberModal = openInviteMemberModal;
+window.acceptInvitation = acceptInvitation;
+window.rejectInvitation = rejectInvitation;
+window.exportProjects = exportProjects;
+window.postComment = postComment;
+window.loadComments = loadComments;

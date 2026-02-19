@@ -12,6 +12,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.core.io.Resource;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -46,6 +47,7 @@ public class ProjectService {
         project.setStudent(student);
         project.setStage(ProjectStage.IDEA);
         project.setStatus(ProjectStatus.PENDING);
+        project.setStageDeadline(calculateDeadline(ProjectStage.IDEA));
         
         Project savedProject = projectRepository.save(project);
         
@@ -60,7 +62,7 @@ public class ProjectService {
     }
 
     public List<Project> getProjectsByStudent(User student) {
-        return projectRepository.findByStudent(student);
+        return projectRepository.findByStudentOrTeamMember(student);
     }
 
     public List<Project> getProjectsByFaculty(User faculty) {
@@ -206,8 +208,10 @@ public class ProjectService {
         if (nextStage != null) {
             project.setStage(nextStage);
             project.setStatus(ProjectStatus.PENDING); // Pending approval for new stage
+            project.setStageDeadline(calculateDeadline(nextStage));
         } else {
             project.setStatus(ProjectStatus.APPROVED); // Final completion
+            project.setStageDeadline(null);
         }
 
         Project saved = projectRepository.save(project);
@@ -279,5 +283,103 @@ public class ProjectService {
             case COMPLETED: return null;
             default: return null;
         }
+    }
+    
+    public LocalDateTime calculateDeadline(ProjectStage stage) {
+        LocalDateTime now = LocalDateTime.now();
+        switch (stage) {
+            case IDEA: return now.plusDays(7);
+            case DESIGN: return now.plusDays(14);
+            case DEVELOPMENT: return now.plusDays(28);
+            case TESTING: return now.plusDays(14);
+            case SUBMISSION: return now.plusDays(7);
+            default: return null;
+        }
+    }
+
+    @Autowired
+    private com.college.plms.repository.TeamInvitationRepository teamInvitationRepository;
+
+    @Transactional
+    public void sendTeamInvitation(Long projectId, Long requesterId, String usernameOrEmail) {
+        Project project = getProjectById(projectId);
+        
+        // Check if requester is the project owner
+        if (!project.getStudent().getId().equals(requesterId)) {
+             throw new RuntimeException("Only the project owner can invite team members.");
+        }
+
+        User invitee = userRepository.findByUsername(usernameOrEmail)
+                .or(() -> userRepository.findByEmail(usernameOrEmail))
+                .orElseThrow(() -> new RuntimeException("User not found with username or email: " + usernameOrEmail));
+
+        if (!invitee.getRole().name().equals("STUDENT")) {
+             throw new RuntimeException("Only students can be invited to the team.");
+        }
+        
+        if (invitee.getId().equals(project.getStudent().getId())) {
+             throw new RuntimeException("User is already the project owner.");
+        }
+        
+        if (project.getTeamMembers().contains(invitee)) {
+            throw new RuntimeException("User is already in the team.");
+        }
+        
+        // Check for existing pending invitation
+        List<TeamInvitation> pending = teamInvitationRepository.findByInviteeAndStatus(invitee, TeamInvitation.InvitationStatus.PENDING);
+        boolean alreadyInvited = pending.stream().anyMatch(inv -> inv.getProject().getId().equals(projectId));
+        if (alreadyInvited) {
+            throw new RuntimeException("User has already been invited.");
+        }
+
+        TeamInvitation invitation = new TeamInvitation();
+        invitation.setProject(project);
+        invitation.setInviter(project.getStudent());
+        invitation.setInvitee(invitee);
+        teamInvitationRepository.save(invitation);
+        
+        notificationService.createNotification(invitee, "You have been invited to join project: " + project.getTitle());
+    }
+
+    @Transactional
+    public void acceptTeamInvitation(Long invitationId, Long userId) {
+        TeamInvitation invitation = teamInvitationRepository.findById(invitationId)
+                .orElseThrow(() -> new RuntimeException("Invitation not found"));
+        
+        if (!invitation.getInvitee().getId().equals(userId)) {
+            throw new RuntimeException("Not authorized to accept this invitation");
+        }
+
+        if (invitation.getStatus() != TeamInvitation.InvitationStatus.PENDING) {
+            throw new RuntimeException("Invitation is not pending");
+        }
+
+        invitation.setStatus(TeamInvitation.InvitationStatus.ACCEPTED);
+        teamInvitationRepository.save(invitation);
+        
+        Project project = invitation.getProject();
+        project.getTeamMembers().add(invitation.getInvitee());
+        projectRepository.save(project);
+
+        notificationService.createNotification(project.getStudent(), invitation.getInvitee().getFullName() + " accepted your team invitation.");
+    }
+
+    @Transactional
+    public void rejectTeamInvitation(Long invitationId, Long userId) {
+        TeamInvitation invitation = teamInvitationRepository.findById(invitationId)
+                .orElseThrow(() -> new RuntimeException("Invitation not found"));
+        
+        if (!invitation.getInvitee().getId().equals(userId)) {
+            throw new RuntimeException("Not authorized to reject this invitation");
+        }
+
+        invitation.setStatus(TeamInvitation.InvitationStatus.REJECTED);
+        teamInvitationRepository.save(invitation);
+        
+        notificationService.createNotification(invitation.getProject().getStudent(), invitation.getInvitee().getFullName() + " rejected your team invitation.");
+    }
+    
+    public List<TeamInvitation> getPendingInvitations(User user) {
+        return teamInvitationRepository.findByInviteeAndStatus(user, TeamInvitation.InvitationStatus.PENDING);
     }
 }

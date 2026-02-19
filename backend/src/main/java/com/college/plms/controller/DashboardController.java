@@ -39,7 +39,7 @@ public class DashboardController {
         stats.put("completedProjects", completedProjects);
         stats.put("totalUsers", userRepository.count());
         
-        // Add more detailed stats if needed (e.g. per stage)
+        // Projects by Stage
         Map<String, Long> projectsByStage = new HashMap<>();
         for (ProjectStage stage : ProjectStage.values()) {
             long count = projectRepository.findAll().stream()
@@ -47,6 +47,15 @@ public class DashboardController {
             projectsByStage.put(stage.name(), count);
         }
         stats.put("projectsByStage", projectsByStage);
+
+        // Projects by Domain
+        Map<String, Long> projectsByDomain = new HashMap<>();
+        projectRepository.findAll().forEach(p -> {
+            String domain = p.getDomain();
+            if (domain == null || domain.isEmpty()) domain = "Unknown";
+            projectsByDomain.put(domain, projectsByDomain.getOrDefault(domain, 0L) + 1);
+        });
+        stats.put("projectsByDomain", projectsByDomain);
 
         return ResponseEntity.ok(stats);
     }

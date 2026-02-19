@@ -2,6 +2,8 @@ package com.college.plms.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "projects")
@@ -26,6 +28,9 @@ public class Project {
     @Column(length = 50)
     private ProjectStatus status = ProjectStatus.PENDING;
 
+    @Column(name = "stage_deadline")
+    private LocalDateTime stageDeadline;
+
     @ManyToOne
     @JoinColumn(name = "student_id", nullable = false)
     private User student;
@@ -36,6 +41,14 @@ public class Project {
 
     @Column(columnDefinition = "boolean default false")
     private Boolean isFacultyAccepted = false;
+
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+        name = "project_team",
+        joinColumns = @JoinColumn(name = "project_id"),
+        inverseJoinColumns = @JoinColumn(name = "user_id")
+    )
+    private Set<User> teamMembers = new HashSet<>();
 
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -60,6 +73,8 @@ public class Project {
     public void setStage(ProjectStage stage) { this.stage = stage; }
     public ProjectStatus getStatus() { return status; }
     public void setStatus(ProjectStatus status) { this.status = status; }
+    public LocalDateTime getStageDeadline() { return stageDeadline; }
+    public void setStageDeadline(LocalDateTime stageDeadline) { this.stageDeadline = stageDeadline; }
     public User getStudent() { return student; }
     public void setStudent(User student) { this.student = student; }
     public User getFaculty() { return faculty; }
@@ -70,4 +85,6 @@ public class Project {
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+    public Set<User> getTeamMembers() { return teamMembers; }
+    public void setTeamMembers(Set<User> teamMembers) { this.teamMembers = teamMembers; }
 }

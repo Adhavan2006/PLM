@@ -176,4 +176,48 @@ public class ProjectController {
     public ResponseEntity<?> getProjectRating(@PathVariable Long id) {
         return ResponseEntity.ok(ratingRepository.findByProjectId(id).orElseThrow());
     }
+
+    @Autowired
+    private com.college.plms.repository.TeamInvitationRepository teamInvitationRepository;
+
+    @PostMapping("/{id}/invite")
+    @PreAuthorize("hasAuthority('STUDENT')")
+    public ResponseEntity<?> sendInvitation(@PathVariable Long id, @RequestBody Map<String, String> payload, Authentication authentication) {
+        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+        try {
+            projectService.sendTeamInvitation(id, userDetails.getId(), payload.get("username"));
+            return ResponseEntity.ok("Invitation sent successfully");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+    
+    @PostMapping("/invitations/{invitationId}/accept")
+    public ResponseEntity<?> acceptInvitation(@PathVariable Long invitationId, Authentication authentication) {
+        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+        try {
+            projectService.acceptTeamInvitation(invitationId, userDetails.getId());
+            return ResponseEntity.ok("Invitation accepted");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+    
+    @PostMapping("/invitations/{invitationId}/reject")
+    public ResponseEntity<?> rejectInvitation(@PathVariable Long invitationId, Authentication authentication) {
+        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+        try {
+            projectService.rejectTeamInvitation(invitationId, userDetails.getId());
+            return ResponseEntity.ok("Invitation rejected");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+    
+    @GetMapping("/invitations/pending")
+    public ResponseEntity<?> getPendingInvitations(Authentication authentication) {
+        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+        User user = userRepository.findById(userDetails.getId()).orElseThrow();
+        return ResponseEntity.ok(projectService.getPendingInvitations(user));
+    }
 }

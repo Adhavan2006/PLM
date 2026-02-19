@@ -14,6 +14,24 @@ document.addEventListener('DOMContentLoaded', () => {
     renderDashboard();
     checkNotifications();
 
+    // Custom Modal Listeners
+    const confirmBtn = document.getElementById('confirmBtn');
+    if (confirmBtn) {
+        confirmBtn.addEventListener('click', () => {
+            if (confirmResolve) { confirmResolve(true); confirmResolve = null; }
+            closeModal('confirmModal');
+        });
+    }
+
+    const inputBtn = document.getElementById('inputBtn');
+    if (inputBtn) {
+        inputBtn.addEventListener('click', () => {
+            const val = document.getElementById('inputField').value;
+            if (inputResolve) { inputResolve(val); inputResolve = null; }
+            closeModal('inputModal');
+        });
+    }
+
     // Create Project Form
     const createProjectForm = document.getElementById('createProjectForm');
     if (createProjectForm) {
@@ -23,6 +41,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const uploadDocForm = document.getElementById('uploadDocForm');
     if (uploadDocForm) {
         uploadDocForm.addEventListener('submit', uploadDocument);
+    }
+
+    const requestFacultyForm = document.getElementById('requestFacultyForm');
+    if (requestFacultyForm) {
+        requestFacultyForm.addEventListener('submit', sendFacultyRequest);
     }
 });
 
@@ -59,26 +82,75 @@ async function renderDashboard() {
     `;
 }
 
+let activeTab = 'pending';
+
 async function renderProjects() {
     const container = document.getElementById('viewContainer');
     const res = await fetch(`${API_BASE}/projects`, { headers: authHeader() });
     let projects = await res.json();
 
-    // Faculty only sees SUBMITTED projects assigned to them
+    let contentHtml = '';
+
     if (user.role === 'FACULTY') {
-        projects = projects.filter(p => p.status === 'SUBMITTED' && p.faculty && p.faculty.id === user.id);
+        const pending = projects.filter(p => !p.isFacultyAccepted);
+        const active = projects.filter(p => p.isFacultyAccepted && p.stage !== 'COMPLETED');
+        const history = projects.filter(p => p.stage === 'COMPLETED');
+
+        // Tab Navigation
+        contentHtml += `
+            <div class="projects-header">
+                <h2>Faculty Dashboard</h2>
+            </div>
+            <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border);">
+                <button class="tab-btn ${activeTab === 'pending' ? 'active' : ''}" onclick="switchTab('pending')">
+                    Pending Requests (${pending.length})
+                </button>
+                <button class="tab-btn ${activeTab === 'active' ? 'active' : ''}" onclick="switchTab('active')">
+                    Active Projects (${active.length})
+                </button>
+                <button class="tab-btn ${activeTab === 'history' ? 'active' : ''}" onclick="switchTab('history')">
+                    History (${history.length})
+                </button>
+            </div>
+        `;
+
+        let displayProjects = [];
+        if (activeTab === 'pending') displayProjects = pending;
+        else if (activeTab === 'active') displayProjects = active;
+        else displayProjects = history;
+
+        contentHtml += generateProjectTable(displayProjects, true);
+
+    } else {
+        // Student / Admin View
+        let btnHtml = '';
+        if (user.role === 'STUDENT') {
+            btnHtml = `<button class="btn-primary" style="width: auto" onclick="openModal('projectModal')">+ New Project</button>`;
+        }
+
+        contentHtml += `
+            <div class="projects-header">
+                <h2>Projects</h2>
+                ${btnHtml}
+            </div>
+            ${generateProjectTable(projects, false)}
+        `;
     }
 
-    let btnHtml = '';
-    if (user.role === 'STUDENT') {
-        btnHtml = `<button class="btn-primary" style="width: auto" onclick="openModal('projectModal')">+ New Project</button>`;
+    container.innerHTML = contentHtml;
+}
+
+function switchTab(tab) {
+    activeTab = tab;
+    renderProjects();
+}
+
+function generateProjectTable(projects, isFaculty) {
+    if (projects.length === 0) {
+        return '<div class="table-container" style="text-align:center; padding: 2rem;">No projects found in this category</div>';
     }
 
-    container.innerHTML = `
-        <div class="projects-header">
-            <h2>Projects</h2>
-            ${btnHtml}
-        </div>
+    return `
         <div class="table-container">
             <table>
                 <thead>
@@ -86,31 +158,37 @@ async function renderProjects() {
                         <th>Title</th>
                         <th>Domain</th>
                         <th>Student</th>
-                        <th>Faculty</th>
                         <th>Stage</th>
                         <th>Status</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${projects.length === 0 ? '<tr><td colspan="7" style="text-align:center; padding: 2rem;">No projects found</td></tr>' : projects.map(p => `
+                    ${projects.map(p => `
                         <tr>
                             <td>${p.title}</td>
                             <td>${p.domain}</td>
                             <td>${p.student.fullName}</td>
-                            <td>${p.faculty ? p.faculty.fullName : '<span style="color: var(--warning)">Not Assigned</span>'}</td>
                             <td><span class="status-badge status-${p.stage}">${p.stage}</span></td>
                             <td><span class="status-badge ${p.status === 'SUBMITTED' ? 'status-SUBMISSION' : ''}">${p.status}</span></td>
                             <td>
                                 <button class="btn-sm" onclick="viewProjectDetails(${p.id})">View Details</button>
+                                
                                 ${user.role === 'STUDENT' && p.status !== 'SUBMITTED' ? `
                                     <button class="btn-sm" onclick="openUploadModal(${p.id})">Upload</button>
-                                    <button class="btn-sm" style="background: var(--accent); color: white;" onclick="submitForReview(${p.id})">Submit for Review</button>
+                                    ${!p.faculty ? `<button class="btn-sm" onclick="openRequestFacultyModal(${p.id})">Request Faculty</button>` : ''}
+                                    ${p.faculty && p.isFacultyAccepted ? `<button class="btn-sm" style="background: var(--accent); color: white;" onclick="submitForReview(${p.id})">Submit for Review</button>` : ''}
                                 ` : ''}
+
                                 ${user.role === 'ADMIN' && !p.faculty ? `<button class="btn-sm" onclick="assignFaculty(${p.id})">Assign Faculty</button>` : ''}
-                                ${user.role === 'FACULTY' && p.status === 'SUBMITTED' ? `
-                                    <button class="btn-sm" onclick="approveStage(${p.id})">Approve</button>
-                                    <button class="btn-sm" onclick="rejectStage(${p.id})">Reject</button>
+
+                                ${isFaculty && activeTab === 'pending' ? `
+                                    <button class="btn-sm" style="background: var(--success); color: white;" onclick="acceptFaculty(${p.id})">Accept</button>
+                                    <button class="btn-sm" style="background: var(--danger); color: white;" onclick="rejectFacultyRequest(${p.id})">Reject</button>
+                                ` : ''}
+
+                                ${isFaculty && activeTab === 'active' && p.status === 'SUBMITTED' ? `
+                                    <button class="btn-sm" onclick="viewProjectDetails(${p.id})">Review</button>
                                 ` : ''}
                             </td>
                         </tr>
@@ -123,11 +201,45 @@ async function renderProjects() {
 
 async function renderAnalytics() {
     const container = document.getElementById('viewContainer');
-    const res = await fetch(`${API_BASE}/analytics`, { headers: authHeader() });
-    const stats = await res.json();
+
+    // Fetch user-specific projects for accurate local stats
+    let stats = {};
+
+    if (user.role === 'ADMIN') {
+        const res = await fetch(`${API_BASE}/analytics`, { headers: authHeader() });
+        stats = await res.json();
+    } else {
+        const res = await fetch(`${API_BASE}/projects`, { headers: authHeader() });
+        const projects = await res.json();
+
+        stats.totalProjects = projects.length;
+        stats.completedProjects = projects.filter(p => p.stage === 'COMPLETED').length;
+        stats.activeProjects = stats.totalProjects - stats.completedProjects;
+
+        if (user.role === 'FACULTY') {
+            stats.pendingRequests = projects.filter(p => !p.isFacultyAccepted).length;
+        }
+
+        // Calculate distribution
+        stats.projectsByStage = {};
+        ['IDEA', 'DESIGN', 'DEVELOPMENT', 'TESTING', 'SUBMISSION', 'COMPLETED'].forEach(stage => {
+            stats.projectsByStage[stage] = projects.filter(p => p.stage === stage).count; // wait count is undefined on array filter
+            stats.projectsByStage[stage] = projects.filter(p => p.stage === stage).length;
+        });
+    }
+
+    let extraCard = '';
+    if (user.role === 'FACULTY') {
+        extraCard = `
+            <div class="stat-card">
+                <h3>Pending Requests</h3>
+                <div class="value" style="color: var(--warning)">${stats.pendingRequests || 0}</div>
+            </div>
+        `;
+    }
 
     container.innerHTML = `
-        <h2 style="margin-bottom: 1.5rem">Analytics Dashboard</h2>
+        <h2 style="margin-bottom: 1.5rem">Analytics Dashboard (${user.role === 'ADMIN' ? 'Global' : 'Personal'})</h2>
         <div class="grid-cols-3">
             <div class="stat-card">
                 <h3>Total Projects</h3>
@@ -141,10 +253,13 @@ async function renderAnalytics() {
                 <h3>Completed</h3>
                 <div class="value" style="color: var(--success)">${stats.completedProjects}</div>
             </div>
+            ${extraCard}
         </div>
+        
+        ${user.role === 'ADMIN' ? `
         <div style="margin-top: 2rem; background: var(--bg-card); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border);">
             <h3 style="margin-bottom: 1rem">Project Distribution by Stage</h3>
-            <div style="display: grid; gap: 0.5rem;">
+             <div style="display: grid; gap: 0.5rem;">
                 <div>IDEA: ${stats.projectsByStage?.IDEA || 0}</div>
                 <div>DESIGN: ${stats.projectsByStage?.DESIGN || 0}</div>
                 <div>DEVELOPMENT: ${stats.projectsByStage?.DEVELOPMENT || 0}</div>
@@ -153,6 +268,7 @@ async function renderAnalytics() {
                 <div>COMPLETED: ${stats.projectsByStage?.COMPLETED || 0}</div>
             </div>
         </div>
+        ` : ''}
     `;
 }
 
@@ -163,6 +279,15 @@ function openModal(id) {
 
 function closeModal(id) {
     document.getElementById(id).style.display = 'none';
+    // Reject promises if cancelled via close button
+    if (id === 'confirmModal' && confirmResolve) {
+        confirmResolve(false);
+        confirmResolve = null;
+    }
+    if (id === 'inputModal' && inputResolve) {
+        inputResolve(null);
+        inputResolve = null;
+    }
 }
 
 async function createProject(e) {
@@ -181,7 +306,7 @@ async function createProject(e) {
         closeModal('projectModal');
         renderProjects();
     } else {
-        alert('Failed to create project');
+        showErrorModal('Error', 'Failed to create project');
     }
 }
 
@@ -207,14 +332,14 @@ async function uploadDocument(e) {
 
     if (res.ok) {
         closeModal('uploadModal');
-        alert('File Uploaded!');
+        showSuccessModal('Success', 'File Uploaded!');
     } else {
-        alert('Upload failed');
+        showErrorModal('Error', 'Upload failed');
     }
 }
 
 async function approveStage(id) {
-    const remarks = prompt("Enter remarks for approval:");
+    const remarks = await showInputModal('Approve Stage', "Enter remarks for approval:");
     if (!remarks) return;
 
     await fetch(`${API_BASE}/projects/${id}/approve`, {
@@ -226,7 +351,7 @@ async function approveStage(id) {
 }
 
 async function rejectStage(id) {
-    const remarks = prompt("Enter reason for rejection:");
+    const remarks = await showInputModal('Reject Stage', "Enter reason for rejection:");
     if (!remarks) return;
 
     await fetch(`${API_BASE}/projects/${id}/reject`, {
@@ -263,12 +388,18 @@ async function fetchNotifications() {
             shortMsg = shortMsg.substring(0, 60) + '...';
         }
         return `
-        <div style="padding: 0.5rem; border-bottom: 1px solid #333; cursor: pointer; ${n.isRead ? '' : 'background: rgba(59,130,246,0.1)'}" onclick="markRead(${n.id})">
+        <div style="padding: 0.5rem; border-bottom: 1px solid #333; cursor: pointer; ${n.isRead ? '' : 'background: rgba(59,130,246,0.1)'}" onclick="openNotificationModal('${n.message.replace(/'/g, "\\'")}', '${n.created_at}', ${n.id})">
             <div style="font-size: 0.875rem;">${shortMsg}</div>
             <small style="color:#aaa">${new Date(n.createdAt).toLocaleDateString()}</small>
         </div>
      `;
     }).join('');
+}
+
+function openNotificationModal(msg, date, id) {
+    document.getElementById('notificationDetail').textContent = msg;
+    openModal('notificationModal');
+    if (id) markRead(id);
 }
 
 async function checkNotifications() {
@@ -296,7 +427,7 @@ async function viewProjectDetails(id) {
     container.innerHTML = `
         <div>
             <button class="btn-sm" onclick="renderProjects()" style="margin-bottom: 1rem;">← Back to Projects</button>
-            <h2>${p.title}</h2>
+            <h2 style="margin-bottom: 1rem;">${p.title}</h2>
             <div style="background: var(--bg-card); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 1.5rem;">
                 <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
                     <div><strong>Domain:</strong> ${p.domain}</div>
@@ -308,7 +439,7 @@ async function viewProjectDetails(id) {
                 <div style="margin-top: 1rem;"><strong>Description:</strong><br>${p.description}</div>
             </div>
             
-            <h3>Documents</h3>
+            <h3 style="margin-top: 2rem; margin-bottom: 1rem;">Documents</h3>
             <div class="table-container">
                 <table>
                     <thead>
@@ -321,7 +452,7 @@ async function viewProjectDetails(id) {
                     <tbody>
                         ${docs.length === 0 ? '<tr><td colspan="3" style="text-align:center; padding: 2rem;">No documents uploaded</td></tr>' : docs.map(d => `
                             <tr>
-                                <td>${d.filename}</td>
+                                <td><a href="#" onclick="downloadDocument(${d.id}, '${d.filename}'); return false;" style="color: var(--accent); text-decoration: underline;">${d.filename}</a></td>
                                 <td>v${d.version}</td>
                                 <td>${new Date(d.uploadedAt).toLocaleString()}</td>
                             </tr>
@@ -333,7 +464,9 @@ async function viewProjectDetails(id) {
             ${user.role === 'STUDENT' && p.status !== 'SUBMITTED' ? `
                 <div style="margin-top: 1.5rem;">
                     <button class="btn-sm" onclick="openUploadModal(${p.id})">Upload Document</button>
-                    <button class="btn-primary" style="width: auto;" onclick="submitForReview(${p.id})">Submit for Review</button>
+                    ${!p.faculty ? `<button class="btn-sm" onclick="openRequestFacultyModal(${p.id})">Request Faculty</button>` : ''}
+                    ${p.faculty && !p.isFacultyAccepted ? `<span style="color: var(--warning); margin-left: 1rem;">Waiting for faculty acceptance</span>` : ''}
+                    ${p.faculty && p.isFacultyAccepted ? `<button class="btn-primary" style="width: auto;" onclick="submitForReview(${p.id})">Submit for Review</button>` : ''}
                 </div>
             ` : ''}
             
@@ -345,6 +478,12 @@ async function viewProjectDetails(id) {
                         <button class="btn-sm" onclick="approveStage(${p.id})">Approve Stage</button>
                     `}
                     <button class="btn-sm" onclick="rejectStage(${p.id})">Reject Stage</button>
+                </div>
+            ` : ''}
+            
+             ${user.role === 'FACULTY' && p.faculty && p.faculty.id === user.id && !p.isFacultyAccepted ? `
+                <div style="margin-top: 1.5rem;">
+                    <button class="btn-primary" style="width: auto; background: var(--success);" onclick="acceptFaculty(${p.id})">Accept Invitation</button>
                 </div>
             ` : ''}
             
@@ -372,41 +511,118 @@ async function viewProjectDetails(id) {
 }
 
 async function openRatingModal(projectId) {
-    const score = prompt('Enter Rating (1-5):');
-    if (!score || score < 1 || score > 5) {
-        alert('Please enter a valid rating between 1 and 5');
+    const scoreVal = await showInputModal('Rate Project', 'Enter Rating (1-5):');
+    if (!scoreVal) return;
+
+    const score = parseInt(scoreVal);
+    if (isNaN(score) || score < 1 || score > 5) {
+        showErrorModal('Invalid Input', 'Please enter a valid rating between 1 and 5');
         return;
     }
-    const feedback = prompt('Enter Final Remarks/Feedback:');
+    const feedback = await showInputModal('Feedback', 'Enter Final Remarks/Feedback:');
     if (!feedback) return;
 
     const res = await fetch(`${API_BASE}/projects/${projectId}/rate`, {
         method: 'POST',
         headers: { ...authHeader(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rating: parseInt(score), feedback })
+        body: JSON.stringify({ rating: score, feedback })
     });
 
     if (res.ok) {
-        alert('Project approved and rated successfully!');
+        showSuccessModal('Success', 'Project approved and rated successfully!');
         renderProjects();
     } else {
-        alert('Failed to rate project');
+        showErrorModal('Error', 'Failed to rate project');
     }
 }
 
-async function submitForReview(id) {
-    if (!confirm('Submit this project for faculty review?')) return;
+// Faculty Request Logic
+async function openRequestFacultyModal(projectId) {
+    document.getElementById('requestProjectId').value = projectId;
+    const select = document.getElementById('facultySelect');
+    select.innerHTML = '<option>Loading...</option>';
+    openModal('requestFacultyModal');
 
-    const res = await fetch(`${API_BASE}/projects/${id}/submit`, {
+    const res = await fetch(`${API_BASE}/auth/users/faculty`, { headers: authHeader() });
+    const faculty = await res.json();
+
+    select.innerHTML = faculty.map(f => `<option value="${f.id}">${f.fullName} (${f.department || 'General'})</option>`).join('');
+}
+
+function showSuccessModal(title, message) {
+    document.getElementById('successTitle').textContent = title || 'Success!';
+    document.getElementById('successMessage').textContent = message;
+    openModal('successModal');
+}
+
+async function sendFacultyRequest(e) {
+    e.preventDefault();
+    const projectId = document.getElementById('requestProjectId').value;
+    const facultyId = document.getElementById('facultySelect').value;
+
+    const res = await fetch(`${API_BASE}/projects/${projectId}/request-faculty/${facultyId}`, {
         method: 'POST',
         headers: authHeader()
     });
 
     if (res.ok) {
-        alert('Project submitted for review!');
+        closeModal('requestFacultyModal');
+        showSuccessModal('Request Sent', 'Request sent successfully!');
         renderProjects();
     } else {
-        alert('Failed to submit project');
+        showErrorModal('Error', 'Failed to send request');
+    }
+}
+
+async function acceptFaculty(id) {
+    if (!await showConfirmModal('Accept Project', "Accept this project?")) return;
+
+    const res = await fetch(`${API_BASE}/projects/${id}/accept-faculty`, {
+        method: 'POST',
+        headers: authHeader()
+    });
+
+    if (res.ok) {
+        showSuccessModal('Success', 'Project Accepted!');
+        renderProjects();
+    } else {
+        const msg = await res.text();
+        showErrorModal('Error', msg);
+    }
+}
+
+let submitProjectId = null;
+
+function submitForReview(id) {
+    submitProjectId = id;
+    openModal('submitProjectModal');
+}
+
+async function confirmSubmission() {
+    if (!submitProjectId) return;
+
+    const res = await fetch(`${API_BASE}/projects/${submitProjectId}/submit`, {
+        method: 'POST',
+        headers: authHeader()
+    });
+
+    if (res.ok) {
+        closeModal('submitProjectModal');
+        showSuccessModal('Success', 'Project submitted for review!');
+        renderProjects();
+    } else {
+        const msg = await res.text();
+        showErrorModal('Error', 'Failed to submit: ' + msg);
+        closeModal('submitProjectModal');
+    }
+}
+
+// File Input Styling
+function updateFileName(input) {
+    const label = document.getElementById('fileUploadLabel');
+    if (input.files && input.files.length > 0) {
+        label.innerHTML = `<ion-icon name="document-text-outline" style="color:var(--success)"></ion-icon><span>${input.files[0].name}</span>`;
+        input.parentElement.style.borderColor = 'var(--success)';
     }
 }
 
@@ -426,13 +642,13 @@ async function assignFaculty(projectId) {
 
     // Create a simple selection prompt
     const facultyList = faculty.map((f, i) => `${i + 1}. ${f.fullName} (${f.email})`).join('\n');
-    const selection = prompt(`Select faculty by number:\n${facultyList}`);
+    const selection = await showInputModal('Assign Faculty', `Select faculty by number:\n${facultyList}`);
 
     if (!selection) return;
 
     const index = parseInt(selection) - 1;
     if (index < 0 || index >= faculty.length) {
-        alert('Invalid selection');
+        showErrorModal('Invalid Selection', 'Invalid faculty number selected');
         return;
     }
 
@@ -445,15 +661,85 @@ async function assignFaculty(projectId) {
     });
 
     if (assignRes.ok) {
-        alert('Faculty assigned successfully');
+        showSuccessModal('Success', 'Faculty assigned successfully');
         renderProjects();
     } else {
-        alert('Failed to assign faculty');
+        showErrorModal('Error', 'Failed to assign faculty');
     }
+}
+
+async function rejectFacultyRequest(id) {
+    if (!await showConfirmModal('Reject Request', "Reject this project request?")) return;
+
+    const res = await fetch(`${API_BASE}/projects/${id}/reject-faculty`, {
+        method: 'POST',
+        headers: authHeader()
+    });
+
+    if (res.ok) {
+        showSuccessModal('Request Rejected', 'The project request has been rejected.');
+        renderProjects();
+    } else {
+        const msg = await res.text();
+        showErrorModal('Error', msg);
+    }
+}
+
+async function downloadDocument(id, filename) {
+    try {
+        const res = await fetch(`${API_BASE}/projects/documents/${id}/download`, {
+            headers: authHeader()
+        });
+
+        if (!res.ok) throw new Error('Download failed');
+
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        a.remove();
+    } catch (err) {
+        showErrorModal('Download Error', 'Failed to download document');
+    }
+}
+
+// Modal State
+let confirmResolve = null;
+let inputResolve = null;
+
+function showConfirmModal(title, message) {
+    return new Promise((resolve) => {
+        document.getElementById('confirmTitle').innerText = title;
+        document.getElementById('confirmMessage').innerText = message;
+        confirmResolve = resolve;
+        openModal('confirmModal');
+    });
+}
+
+function showInputModal(title, message) {
+    return new Promise((resolve) => {
+        document.getElementById('inputTitle').innerText = title;
+        document.getElementById('inputMessage').innerText = message;
+        document.getElementById('inputField').value = '';
+        inputResolve = resolve;
+        openModal('inputModal');
+    });
+}
+
+function showErrorModal(title, message) {
+    document.getElementById('errorTitle').innerText = title || 'Error';
+    document.getElementById('errorMessage').innerText = message;
+    openModal('errorModal');
 }
 
 // Make functions global for HTML onclick attributes
 window.renderDashboard = renderDashboard;
+window.switchTab = switchTab;
+window.rejectFacultyRequest = rejectFacultyRequest;
 window.renderProjects = renderProjects;
 window.renderAnalytics = renderAnalytics;
 window.logout = logout;
@@ -467,5 +753,15 @@ window.openUploadModal = openUploadModal;
 window.approveStage = approveStage;
 window.rejectStage = rejectStage;
 window.assignFaculty = assignFaculty;
+window.openRequestFacultyModal = openRequestFacultyModal;
+window.acceptFaculty = acceptFaculty;
+window.confirmSubmission = confirmSubmission;
+window.updateFileName = updateFileName;
+window.openNotificationModal = openNotificationModal;
 window.openRatingModal = openRatingModal;
+window.downloadDocument = downloadDocument;
 
+window.showSuccessModal = showSuccessModal;
+window.showErrorModal = showErrorModal;
+window.showConfirmModal = showConfirmModal;
+window.showInputModal = showInputModal;

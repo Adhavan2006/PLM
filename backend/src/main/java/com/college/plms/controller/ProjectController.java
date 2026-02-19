@@ -13,6 +13,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.core.io.Resource;
 
 import java.util.List;
 import java.util.Map;
@@ -77,6 +78,14 @@ public class ProjectController {
         return ResponseEntity.ok(projectService.getProjectDocuments(id));
     }
 
+    @GetMapping("/documents/{documentId}/download")
+    public ResponseEntity<Resource> downloadDocument(@PathVariable Long documentId) {
+        Resource resource = projectService.getDocumentResource(documentId);
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"")
+                .body(resource);
+    }
+
     @PostMapping("/{id}/approve")
     @PreAuthorize("hasAuthority('FACULTY')")
     public ResponseEntity<?> approveStage(@PathVariable Long id, @RequestBody Map<String, String> payload, Authentication authentication) {
@@ -107,11 +116,46 @@ public class ProjectController {
         return ResponseEntity.ok("Faculty Assigned");
     }
     
+    @PostMapping("/{id}/request-faculty/{facultyId}")
+    @PreAuthorize("hasAuthority('STUDENT')")
+    public ResponseEntity<?> requestFaculty(@PathVariable Long id, @PathVariable Long facultyId) {
+        projectService.requestFaculty(id, facultyId);
+        return ResponseEntity.ok("Faculty requested successfully");
+    }
+
+    @PostMapping("/{id}/accept-faculty")
+    @PreAuthorize("hasAuthority('FACULTY')")
+    public ResponseEntity<?> acceptFaculty(@PathVariable Long id, Authentication authentication) {
+        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+        try {
+            projectService.acceptFacultyRequest(id, userDetails.getId());
+            return ResponseEntity.ok("Faculty request accepted");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/{id}/reject-faculty")
+    @PreAuthorize("hasAuthority('FACULTY')")
+    public ResponseEntity<?> rejectFaculty(@PathVariable Long id, Authentication authentication) {
+        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+        try {
+            projectService.rejectFacultyRequest(id, userDetails.getId());
+            return ResponseEntity.ok("Faculty request rejected");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
     @PostMapping("/{id}/submit")
     @PreAuthorize("hasAuthority('STUDENT')")
     public ResponseEntity<?> submitForReview(@PathVariable Long id) {
-        projectService.submitForReview(id);
-        return ResponseEntity.ok("Project submitted for review");
+        try {
+            projectService.submitForReview(id);
+            return ResponseEntity.ok("Project submitted for review");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
     @PostMapping("/{id}/rate")

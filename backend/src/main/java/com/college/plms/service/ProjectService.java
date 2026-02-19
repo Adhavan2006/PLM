@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.core.io.Resource;
 
 import java.util.List;
 import java.util.UUID;
@@ -70,14 +71,63 @@ public class ProjectService {
         return projectRepository.findById(id).orElseThrow(() -> new RuntimeException("Project not found"));
     }
 
+    // Admin assignment (force assign)
     public Project assignFaculty(Long projectId, Long facultyId) {
         Project project = getProjectById(projectId);
         User faculty = userRepository.findById(facultyId).orElseThrow(() -> new RuntimeException("Faculty not found"));
         project.setFaculty(faculty);
+        project.setIsFacultyAccepted(true); // Admin moves are auto-accepted
         Project saved = projectRepository.save(project);
         
-        notificationService.createNotification(faculty, "You have been assigned to project: " + project.getTitle());
-        notificationService.createNotification(project.getStudent(), "Faculty " + faculty.getFullName() + " assigned to your project.");
+        notificationService.createNotification(faculty, "You have been assigned to project: " + project.getTitle() + " by Admin.");
+        notificationService.createNotification(project.getStudent(), "Faculty " + faculty.getFullName() + " assigned to your project by Admin.");
+        
+        return saved;
+    }
+
+    // Student requests faculty
+    public Project requestFaculty(Long projectId, Long facultyId) {
+        Project project = getProjectById(projectId);
+        User faculty = userRepository.findById(facultyId).orElseThrow(() -> new RuntimeException("Faculty not found"));
+        
+        project.setFaculty(faculty);
+        project.setIsFacultyAccepted(false); // Pending acceptance
+        Project saved = projectRepository.save(project);
+        
+        notificationService.createNotification(faculty, "Student requested you for project: " + project.getTitle());
+        
+        return saved;
+    }
+
+    // Faculty accepts request
+    public Project acceptFacultyRequest(Long projectId, Long facultyId) {
+        Project project = getProjectById(projectId);
+        
+        if (project.getFaculty() == null || !project.getFaculty().getId().equals(facultyId)) {
+             throw new RuntimeException("Not authorized or no request found");
+        }
+
+        project.setIsFacultyAccepted(true);
+        Project saved = projectRepository.save(project);
+        
+        notificationService.createNotification(project.getStudent(), "Faculty " + project.getFaculty().getFullName() + " accepted your request.");
+        
+        return saved;
+    }
+
+    // Faculty rejects request
+    public Project rejectFacultyRequest(Long projectId, Long facultyId) {
+        Project project = getProjectById(projectId);
+        
+        if (project.getFaculty() == null || !project.getFaculty().getId().equals(facultyId)) {
+             throw new RuntimeException("Not authorized or no request found");
+        }
+
+        project.setFaculty(null); // Unassign faculty
+        project.setIsFacultyAccepted(false);
+        Project saved = projectRepository.save(project);
+        
+        notificationService.createNotification(project.getStudent(), "Faculty rejected your request. Please request another faculty.");
         
         return saved;
     }
@@ -117,7 +167,11 @@ public class ProjectService {
         Project project = getProjectById(projectId);
         
         if (project.getFaculty() == null) {
-            throw new RuntimeException("Cannot submit: No faculty assigned to this project");
+            throw new RuntimeException("Cannot submit: No faculty assigned to this project. Please request a faculty member first.");
+        }
+
+        if (!Boolean.TRUE.equals(project.getIsFacultyAccepted())) {
+            throw new RuntimeException("Cannot submit: Faculty has not accepted your request yet.");
         }
         
         project.setStatus(ProjectStatus.SUBMITTED);
@@ -203,6 +257,12 @@ public class ProjectService {
         notificationService.createNotification(project.getStudent(), "Your project '" + project.getTitle() + "' has been rated: " + score + "/5 by " + faculty.getFullName());
         
         return saved;
+    }
+
+    public Resource getDocumentResource(Long documentId) {
+        Document document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new RuntimeException("Document not found"));
+        return fileStorageService.loadAsResource(document.getFilePath());
     }
 
     private ProjectStage getNextStage(ProjectStage current) {

@@ -19,10 +19,11 @@ public class Project {
     private String domain;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(length = 50, nullable = false)
     private ProjectStage stage;
 
     @Enumerated(EnumType.STRING)
+    @Column(length = 50)
     private ProjectStatus status = ProjectStatus.PENDING;
 
     @ManyToOne
@@ -32,6 +33,9 @@ public class Project {
     @ManyToOne
     @JoinColumn(name = "faculty_id")
     private User faculty;
+
+    @Column(columnDefinition = "boolean default false")
+    private Boolean isFacultyAccepted = false;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -60,6 +64,8 @@ public class Project {
     public void setStudent(User student) { this.student = student; }
     public User getFaculty() { return faculty; }
     public void setFaculty(User faculty) { this.faculty = faculty; }
+    public Boolean getIsFacultyAccepted() { return isFacultyAccepted; }
+    public void setIsFacultyAccepted(Boolean isFacultyAccepted) { this.isFacultyAccepted = isFacultyAccepted; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

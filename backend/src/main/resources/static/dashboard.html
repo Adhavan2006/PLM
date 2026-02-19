@@ -108,10 +108,115 @@
                     <input type="hidden" id="uploadProjectId">
                     <div class="form-group">
                         <label>Select File</label>
-                        <input type="file" id="docFile" required>
+                        <div class="file-upload-wrapper" onclick="document.getElementById('docFile').click()">
+                            <input type="file" id="docFile" required onchange="updateFileName(this)">
+                            <div class="file-upload-label" id="fileUploadLabel">
+                                <ion-icon name="cloud-upload-outline"></ion-icon>
+                                <span>Click to browse or drag file here</span>
+                            </div>
+                        </div>
                     </div>
                     <button type="submit" class="btn-primary">Upload</button>
                 </form>
+            </div>
+        </div>
+        </div>
+
+        <div id="requestFacultyModal" class="modal hidden">
+            <div class="modal-content">
+                <span class="close-btn" onclick="closeModal('requestFacultyModal')">&times;</span>
+                <h3>Request Faculty</h3>
+                <form id="requestFacultyForm">
+                    <input type="hidden" id="requestProjectId">
+                    <div class="form-group">
+                        <label>Select Faculty</label>
+                        <select id="facultySelect" required>
+                            <option value="">Loading...</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn-primary">Send Request</button>
+                </form>
+            </div>
+        </div>
+
+        <div id="submitProjectModal" class="modal hidden">
+            <div class="modal-content">
+                <span class="close-btn" onclick="closeModal('submitProjectModal')">&times;</span>
+                <h3>Submit Project</h3>
+                <p style="margin-bottom: 1.5rem; color: var(--text-secondary);">
+                    Are you sure you want to submit this project for review?
+                    Once submitted, you cannot make changes until the faculty reviews it.
+                </p>
+                <div style="display: flex; gap: 1rem;">
+                    <button class="btn-primary" onclick="confirmSubmission()" style="background: var(--success)">Yes,
+                        Submit</button>
+                    <button class="btn-primary" onclick="closeModal('submitProjectModal')"
+                        style="background: var(--bg-dark); border: 1px solid var(--border)">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="notificationModal" class="modal hidden">
+            <div class="modal-content">
+                <span class="close-btn" onclick="closeModal('notificationModal')">&times;</span>
+                <h3>Notification</h3>
+                <div id="notificationDetail" class="notification-detail-content"></div>
+                <div style="margin-top: 1rem; text-align: right;">
+                    <button class="btn-sm" onclick="closeModal('notificationModal')">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="successModal" class="modal hidden">
+            <div class="modal-content" style="text-align: center; max-width: 400px;">
+                <span class="close-btn" onclick="closeModal('successModal')">&times;</span>
+                <div style="margin-bottom: 1rem;">
+                    <ion-icon name="checkmark-circle" style="font-size: 3rem; color: var(--success);"></ion-icon>
+                </div>
+                <h3 id="successTitle">Success!</h3>
+                <p id="successMessage" style="color: var(--text-secondary); margin-bottom: 1.5rem;"></p>
+                <button class="btn-primary" onclick="closeModal('successModal')">OK</button>
+            </div>
+        </div>
+
+        <div id="errorModal" class="modal hidden">
+            <div class="modal-content" style="text-align: center; max-width: 400px;">
+                <span class="close-btn" onclick="closeModal('errorModal')">&times;</span>
+                <div style="margin-bottom: 1rem;">
+                    <ion-icon name="alert-circle" style="font-size: 3rem; color: var(--danger);"></ion-icon>
+                </div>
+                <h3 id="errorTitle">Error</h3>
+                <p id="errorMessage" style="color: var(--text-secondary); margin-bottom: 1.5rem;"></p>
+                <button class="btn-primary" onclick="closeModal('errorModal')"
+                    style="background: var(--danger)">Close</button>
+            </div>
+        </div>
+
+        <div id="confirmModal" class="modal hidden">
+            <div class="modal-content" style="max-width: 400px;">
+                <span class="close-btn" onclick="closeModal('confirmModal')">&times;</span>
+                <h3 id="confirmTitle">Confirm Action</h3>
+                <p id="confirmMessage" style="color: var(--text-secondary); margin-bottom: 1.5rem;"></p>
+                <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                    <button class="btn-sm" onclick="closeModal('confirmModal')"
+                        style="background: var(--bg-dark)">Cancel</button>
+                    <button class="btn-primary" id="confirmBtn" style="width: auto">Confirm</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="inputModal" class="modal hidden">
+            <div class="modal-content" style="max-width: 400px;">
+                <span class="close-btn" onclick="closeModal('inputModal')">&times;</span>
+                <h3 id="inputTitle">Input Required</h3>
+                <p id="inputMessage" style="color: var(--text-secondary); margin-bottom: 1rem;"></p>
+                <input type="text" id="inputField" style="width: 100%; margin-bottom: 1.5rem;"
+                    placeholder="Enter value...">
+                <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                    <button class="btn-sm" onclick="closeModal('inputModal')"
+                        style="background: var(--bg-dark)">Cancel</button>
+                    <button class="btn-primary" id="inputBtn" style="width: auto">Submit</button>
+                </div>
             </div>
         </div>
 

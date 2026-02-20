@@ -1,15 +1,41 @@
 const API_URL = 'http://localhost:8080/api/auth';
 
+function openAuthModal(tab) {
+    const modal = document.getElementById('authModal');
+    modal.classList.add('active');
+    switchTab(tab);
+}
+
+function closeAuthModal() {
+    const modal = document.getElementById('authModal');
+    modal.classList.remove('active');
+}
+
+// Close modal when clicking outside
+window.onclick = function (event) {
+    const modal = document.getElementById('authModal');
+    if (event.target == modal) {
+        closeAuthModal();
+    }
+}
+
 function switchTab(tab) {
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    const title = document.getElementById('modalTitle');
+    const subtitle = document.getElementById('modalSubtitle');
+
     if (tab === 'login') {
         document.getElementById('tabLogin').classList.add('active');
         document.getElementById('loginForm').classList.remove('hidden');
         document.getElementById('registerForm').classList.add('hidden');
+        title.textContent = 'Welcome Back';
+        subtitle.textContent = 'Log in to your workspace';
     } else {
         document.getElementById('tabRegister').classList.add('active');
         document.getElementById('loginForm').classList.add('hidden');
         document.getElementById('registerForm').classList.remove('hidden');
+        title.textContent = 'Join PLMS';
+        subtitle.textContent = 'Start your academic journey today';
     }
 }
 

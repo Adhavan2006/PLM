@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PLMS - Login</title>
-    <link rel="stylesheet" href="css/style.css?v=3">
+    <link rel="stylesheet" href="css/style.css?v=5">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 
@@ -15,19 +15,72 @@
         <div class="blob blob-2"></div>
         <div class="blob blob-3"></div>
     </div>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">PLMS</div>
+            <div class="nav-actions">
+                <button class="nav-link" onclick="openAuthModal('login')">Login</button>
+                <button class="btn-sm-accent" onclick="openAuthModal('register')">Get Started</button>
+            </div>
+        </div>
+    </nav>
+
     <div class="login-page-wrapper">
         <header class="hero-section">
             <div class="hero-badge">Mini Project Management</div>
-            <h1>Transform Your Academic Journey</h1>
+            <h1>Transform Your <br>Academic Journey</h1>
             <p>From the first spark of an idea to the final 5-star rating. <br> Manage your mini-projects like a pro.
             </p>
+
+            <div class="hero-cta">
+                <button class="btn-primary-large" onclick="openAuthModal('register')">Start Your Project</button>
+                <div class="hero-stats">
+                    <span><b>500+</b> Projects</span>
+                    <span><b>100+</b> Mentors</span>
+                </div>
+            </div>
         </header>
 
-        <div class="login-container">
-            <div class="login-card">
+        <section class="how-it-works-mini">
+            <div class="mini-stepper">
+                <div class="mini-step">
+                    <ion-icon name="bulb-outline"></ion-icon>
+                    <span>Idea Pitch</span>
+                </div>
+                <div class="mini-line"></div>
+                <div class="mini-step">
+                    <ion-icon name="git-branch-outline"></ion-icon>
+                    <span>Lifecycle</span>
+                </div>
+                <div class="mini-line"></div>
+                <div class="mini-step">
+                    <ion-icon name="chatbubbles-outline"></ion-icon>
+                    <span>Collaborate</span>
+                </div>
+                <div class="mini-line"></div>
+                <div class="mini-step">
+                    <ion-icon name="star-outline"></ion-icon>
+                    <span>Final Rating</span>
+                </div>
+            </div>
+        </section>
+
+        <footer class="login-footer">
+            &copy; 2026 PLMS - Excellence in Project Management
+        </footer>
+    </div>
+
+    <!-- Auth Modal -->
+    <div id="authModal" class="modal-overlay">
+        <div class="modal-card">
+            <button class="modal-close" onclick="closeAuthModal()">
+                <ion-icon name="close-outline"></ion-icon>
+            </button>
+
+            <div class="login-card-inner">
                 <div class="login-header">
-                    <h2>Welcome Back</h2>
-                    <p>Log in to access your projects</p>
+                    <h2 id="modalTitle">Welcome Back</h2>
+                    <p id="modalSubtitle">Log in to your workspace</p>
                 </div>
 
                 <div class="tabs">
@@ -70,39 +123,6 @@
                 <div id="authMessage" class="message"></div>
             </div>
         </div>
-
-        <section class="how-it-works">
-            <h3>How PLMS Works</h3>
-            <div class="stepper">
-                <div class="step">
-                    <div class="step-icon"><ion-icon name="bulb-outline"></ion-icon></div>
-                    <h4>Submit Idea</h4>
-                    <p>Pitch your project and form your team early.</p>
-                </div>
-                <div class="step-line"></div>
-                <div class="step">
-                    <div class="step-icon"><ion-icon name="git-branch-outline"></ion-icon></div>
-                    <h4>Lifecycle</h4>
-                    <p>Track progress from Design to Testing stages.</p>
-                </div>
-                <div class="step-line"></div>
-                <div class="step">
-                    <div class="step-icon"><ion-icon name="chatbubbles-outline"></ion-icon></div>
-                    <h4>Collaborate</h4>
-                    <p>Real-time chat and faculty mentorship.</p>
-                </div>
-                <div class="step-line"></div>
-                <div class="step">
-                    <div class="step-icon"><ion-icon name="star-outline"></ion-icon></div>
-                    <h4>Rated</h4>
-                    <p>Final approval and faculty evaluaton.</p>
-                </div>
-            </div>
-        </section>
-
-        <footer class="login-footer">
-            &copy; 2026 PLMS - Excellence in Project Management
-        </footer>
     </div>
 
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>

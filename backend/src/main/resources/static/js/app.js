@@ -961,8 +961,8 @@ async function checkNotifications() {
     else { badge.style.display = 'none'; }
 }
 
-function openModal(id) { document.getElementById(id).style.display = 'flex'; }
-function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
 async function createProject(e) {
     e.preventDefault();
@@ -1206,8 +1206,15 @@ async function setProjectDeadline(e) {
             closeModal('deadlineModal');
             showSuccessModal('Updated', 'Deadline set!');
             renderProjects();
+        } else {
+            const errText = await res.text();
+            alert(`Failed to set deadline: ${res.status} ${errText}`);
+            console.error('Deadline error', res.status, errText);
         }
-    } catch (err) { alert('Failed to set deadline'); }
+    } catch (err) {
+        alert('Failed to set deadline: ' + err.message);
+        console.error('Deadline fetch error', err);
+    }
 }
 
 function openRateModal(pid) {
@@ -1254,10 +1261,13 @@ async function deleteProject(pid) {
                 showSuccessModal('Deleted', 'Project deleted successfully');
                 renderProjects();
             } else {
-                alert('Failed to delete project');
+                const errText = await res.text();
+                alert(`Failed to delete project: ${res.status} ${errText}`);
+                console.error('Delete error', res.status, errText);
             }
         } catch (err) {
-            alert('Error deleting project');
+            alert('Error deleting project: ' + err.message);
+            console.error('Delete fetch error', err);
         }
     }
 }

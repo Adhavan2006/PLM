@@ -3,6 +3,8 @@ package com.college.plms.service;
 import com.college.plms.model.*;
 import com.college.plms.repository.ApprovalRepository;
 import com.college.plms.repository.DocumentRepository;
+import com.college.plms.repository.ChatMessageRepository;
+import com.college.plms.repository.CommentRepository;
 import com.college.plms.repository.GlobalSettingRepository;
 import com.college.plms.repository.ProjectRepository;
 import com.college.plms.repository.RatingRepository;
@@ -45,6 +47,12 @@ public class ProjectService {
 
     @Autowired
     private com.college.plms.repository.ActivityRepository activityRepository;
+
+    @Autowired
+    private ChatMessageRepository chatMessageRepository;
+
+    @Autowired
+    private CommentRepository commentRepository;
 
     public Project createProject(String title, String description, String domain, String techStack, String githubUrl, User student) {
         Project project = new Project();
@@ -440,6 +448,8 @@ public class ProjectService {
         documentRepository.deleteAll(documentRepository.findByProjectId(projectId));
         activityRepository.deleteAll(activityRepository.findByProjectOrderByCreatedAtDesc(project));
         approvalRepository.deleteAll(approvalRepository.findByProjectId(projectId));
+        chatMessageRepository.deleteAll(chatMessageRepository.findByProject(project));
+        commentRepository.deleteAll(commentRepository.findByProject(project));
         ratingRepository.findByProjectId(projectId).ifPresent(ratingRepository::delete);
         teamInvitationRepository.deleteAll(teamInvitationRepository.findByProject(project));
         projectRepository.delete(project);

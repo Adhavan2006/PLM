@@ -107,9 +107,14 @@ public class AdminController {
 
     @PostMapping("/projects/{id}/deadline")
     public ResponseEntity<?> setProjectDeadline(@PathVariable Long id, @RequestBody Map<String, String> payload) {
+        System.out.println("DEBUG: AdminController.setProjectDeadline called for project ID: " + id);
         com.college.plms.model.Project project = projectRepository.findById(id).orElseThrow();
         String deadlineStr = payload.get("deadline");
         if (deadlineStr != null) {
+             // Handle YYYY-MM-DDTHH:mm from browser inputs
+             if (deadlineStr.length() == 16) {
+                 deadlineStr += ":00";
+             }
              project.setStageDeadline(LocalDateTime.parse(deadlineStr));
              projectRepository.save(project);
              activityRepository.save(new com.college.plms.model.Activity(project, "Admin set deadline to: " + deadlineStr));

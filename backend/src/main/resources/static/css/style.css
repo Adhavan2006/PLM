@@ -883,8 +883,8 @@ th {
     width: 100%;
     height: 100%;
     background: rgba(0, 0, 0, 0.5);
-    display: none;
-    /* Hidden by default */
+    display: flex;
+    /* Hidden by default moved to .hidden class */
     justify-content: center;
     align-items: center;
     z-index: 100;

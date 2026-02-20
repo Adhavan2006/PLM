@@ -118,7 +118,7 @@ public class ProjectController {
     }
     
     @PostMapping("/{id}/assign-faculty/{facultyId}")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> assignFacultyById(@PathVariable Long id, @PathVariable Long facultyId) {
         projectService.assignFaculty(id, facultyId);
         return ResponseEntity.ok("Faculty Assigned");
@@ -144,7 +144,7 @@ public class ProjectController {
     }
 
     @PostMapping("/{id}/reject-faculty")
-    @PreAuthorize("hasAuthority('FACULTY')")
+    @PreAuthorize("hasRole('FACULTY')")
     public ResponseEntity<?> rejectFaculty(@PathVariable Long id, Authentication authentication) {
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
         try {
@@ -197,6 +197,7 @@ public class ProjectController {
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> deleteProject(@PathVariable Long id) {
+        System.out.println("DEBUG: deleteProject called for project ID: " + id);
         projectService.deleteProject(id);
         return ResponseEntity.ok(new com.college.plms.payload.response.MessageResponse("Project deleted successfully"));
     }

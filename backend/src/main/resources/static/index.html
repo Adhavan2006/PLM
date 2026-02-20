@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PLMS - Login</title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style.css?v=3">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 
@@ -15,54 +15,98 @@
         <div class="blob blob-2"></div>
         <div class="blob blob-3"></div>
     </div>
-    <div class="login-container">
-        <div class="login-card">
-            <div class="login-header">
-                <h1>PLMS</h1>
-                <p>Mini Project Lifecycle Management</p>
+    <div class="login-page-wrapper">
+        <header class="hero-section">
+            <div class="hero-badge">Mini Project Management</div>
+            <h1>Transform Your Academic Journey</h1>
+            <p>From the first spark of an idea to the final 5-star rating. <br> Manage your mini-projects like a pro.
+            </p>
+        </header>
+
+        <div class="login-container">
+            <div class="login-card">
+                <div class="login-header">
+                    <h2>Welcome Back</h2>
+                    <p>Log in to access your projects</p>
+                </div>
+
+                <div class="tabs">
+                    <button class="tab-btn active" id="tabLogin" onclick="switchTab('login')">Login</button>
+                    <button class="tab-btn" id="tabRegister" onclick="switchTab('register')">New Student</button>
+                </div>
+
+                <form id="loginForm" class="auth-form">
+                    <div class="form-group">
+                        <label>Email Address</label>
+                        <input type="email" id="loginEmail" required placeholder="admin@plm.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="loginPassword" required placeholder="••••••••">
+                    </div>
+                    <button type="submit" class="btn-primary">Sign In</button>
+                </form>
+
+                <form id="registerForm" class="auth-form hidden">
+                    <div class="form-group">
+                        <label>Full Name</label>
+                        <input type="text" id="regFullName" required placeholder="Enter your full name">
+                    </div>
+                    <div class="form-group">
+                        <label>Email Address</label>
+                        <input type="email" id="regEmail" required placeholder="your.email@gmail.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="regPassword" required placeholder="Create password">
+                    </div>
+                    <div class="form-group">
+                        <label>Confirm Password</label>
+                        <input type="password" id="regConfirmPassword" required placeholder="Confirm password">
+                    </div>
+                    <button type="submit" class="btn-primary">Join PLMS</button>
+                </form>
+
+                <div id="authMessage" class="message"></div>
             </div>
-
-            <div class="tabs">
-                <button class="tab-btn active" id="tabLogin" onclick="switchTab('login')">Login</button>
-                <button class="tab-btn" id="tabRegister" onclick="switchTab('register')">Student Register</button>
-            </div>
-
-            <form id="loginForm" class="auth-form">
-                <div class="form-group">
-                    <label>Email Address</label>
-                    <input type="email" id="loginEmail" required placeholder="admin@plm.com">
-                </div>
-                <div class="form-group">
-                    <label>Password</label>
-                    <input type="password" id="loginPassword" required placeholder="••••••••">
-                </div>
-                <button type="submit" class="btn-primary">Login</button>
-            </form>
-
-            <form id="registerForm" class="auth-form hidden">
-                <div class="form-group">
-                    <label>Full Name</label>
-                    <input type="text" id="regFullName" required placeholder="Enter your full name">
-                </div>
-                <div class="form-group">
-                    <label>Email Address</label>
-                    <input type="email" id="regEmail" required placeholder="your.email@gmail.com">
-                </div>
-                <div class="form-group">
-                    <label>Password</label>
-                    <input type="password" id="regPassword" required placeholder="Create password">
-                </div>
-                <div class="form-group">
-                    <label>Confirm Password</label>
-                    <input type="password" id="regConfirmPassword" required placeholder="Confirm password">
-                </div>
-                <button type="submit" class="btn-primary">Register as Student</button>
-            </form>
-
-            <div id="authMessage" class="message"></div>
         </div>
+
+        <section class="how-it-works">
+            <h3>How PLMS Works</h3>
+            <div class="stepper">
+                <div class="step">
+                    <div class="step-icon"><ion-icon name="bulb-outline"></ion-icon></div>
+                    <h4>Submit Idea</h4>
+                    <p>Pitch your project and form your team early.</p>
+                </div>
+                <div class="step-line"></div>
+                <div class="step">
+                    <div class="step-icon"><ion-icon name="git-branch-outline"></ion-icon></div>
+                    <h4>Lifecycle</h4>
+                    <p>Track progress from Design to Testing stages.</p>
+                </div>
+                <div class="step-line"></div>
+                <div class="step">
+                    <div class="step-icon"><ion-icon name="chatbubbles-outline"></ion-icon></div>
+                    <h4>Collaborate</h4>
+                    <p>Real-time chat and faculty mentorship.</p>
+                </div>
+                <div class="step-line"></div>
+                <div class="step">
+                    <div class="step-icon"><ion-icon name="star-outline"></ion-icon></div>
+                    <h4>Rated</h4>
+                    <p>Final approval and faculty evaluaton.</p>
+                </div>
+            </div>
+        </section>
+
+        <footer class="login-footer">
+            &copy; 2026 PLMS - Excellence in Project Management
+        </footer>
     </div>
 
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
     <script src="js/auth.js"></script>
 </body>
 

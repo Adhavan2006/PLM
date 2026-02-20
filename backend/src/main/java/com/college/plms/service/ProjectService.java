@@ -356,6 +356,11 @@ public class ProjectService {
              throw new RuntimeException("Only the project owner can invite team members.");
         }
 
+        // Only allow invitations during IDEA stage
+        if (project.getStage() != ProjectStage.IDEA) {
+            throw new RuntimeException("Team members can only be invited during the IDEA stage.");
+        }
+
         User invitee = userRepository.findByEmail(usernameOrEmail)
             .orElseThrow(() -> new RuntimeException("User not found with email: " + usernameOrEmail));
 

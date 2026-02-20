@@ -131,6 +131,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (searchInput) {
         searchInput.addEventListener('input', (e) => handleSearch(e.target.value));
     }
+
+    const rateProjectForm = document.getElementById('rateProjectForm');
+    if (rateProjectForm) {
+        rateProjectForm.addEventListener('submit', submitRating);
+    }
 });
 
 // Redundant authHeader removed
@@ -741,6 +746,26 @@ async function viewProjectDetails(id) {
             fetch(`${API_BASE}/projects/${id}/documents`, { headers: authHeader() }).then(res => res.json())
         ]);
 
+        let ratingHtml = '';
+        if (p.stage === 'COMPLETED') {
+            try {
+                const rRes = await fetch(`${API_BASE}/projects/${id}/rating`, { headers: authHeader() });
+                if (rRes.ok) {
+                    const r = await rRes.json();
+                    ratingHtml = `
+                        <div class="stat-card" style="margin-bottom: 2rem; border-left: 4px solid var(--success);">
+                            <h4>Project Rating</h4>
+                            <div style="font-size: 1.5rem; color: var(--success); margin: 0.5rem 0;">
+                                ${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)} (${r.rating}/5)
+                            </div>
+                            <p style="font-style: italic; color: var(--text-secondary)">"${r.feedback}"</p>
+                            <small>- Rated by ${r.faculty.fullName}</small>
+                        </div>
+                    `;
+                }
+            } catch (e) { console.log('Rating fetch failed or not found'); }
+        }
+
         container.innerHTML = `
             <div>
                 <button class="btn-sm" onclick="renderProjects()" style="margin-bottom: 1rem;">← Back</button>
@@ -748,6 +773,7 @@ async function viewProjectDetails(id) {
                     <h2>${p.title}</h2>
                     <span class="status-badge status-${p.stage}">${p.stage}</span>
                 </div>
+                ${ratingHtml}
                 
                 <div class="grid-cols-3" style="margin-bottom: 2rem;">
                     <div class="stat-card"><strong>Domain</strong><div style="margin-top:0.5rem">${p.domain}</div></div>
@@ -806,7 +832,11 @@ async function viewProjectDetails(id) {
                         <button class="btn-sm" style="background: var(--danger); color: white;" onclick="rejectStage(${p.id})">Reject Stage</button>
                     ` : ''}
                     
-                    ${getUserRole() === 'STUDENT' && p.student.id === user.id && p.stage !== 'COMPLETED' ? `
+                    ${getUserRole() === 'FACULTY' && p.stage === 'COMPLETED' && !ratingHtml ? `
+                        <button class="btn-primary" style="width: auto; background: var(--success)" onclick="openRateModal(${p.id})">Rate Project</button>
+                    ` : ''}
+                    
+                    ${getUserRole() === 'STUDENT' && p.student.id === user.id && p.stage === 'IDEA' ? `
                         <button class="btn-sm" style="background: var(--accent); color: white;" onclick="openInviteModal(${p.id})">Invite Teammate</button>
                     ` : ''}
                     
@@ -1180,6 +1210,37 @@ async function setProjectDeadline(e) {
     } catch (err) { alert('Failed to set deadline'); }
 }
 
+function openRateModal(pid) {
+    document.getElementById('rateProjectId').value = pid;
+    openModal('rateProjectModal');
+}
+
+async function submitRating(e) {
+    e.preventDefault();
+    const pid = document.getElementById('rateProjectId').value;
+    const rating = document.getElementById('rateScore').value;
+    const feedback = document.getElementById('rateFeedback').value;
+
+    try {
+        const res = await fetch(`${API_BASE}/projects/${pid}/rate`, {
+            method: 'POST',
+            headers: authHeader(),
+            body: JSON.stringify({ rating: parseInt(rating), feedback })
+        });
+
+        if (res.ok) {
+            closeModal('rateProjectModal');
+            showSuccessModal('Project Rated', 'Thank you for your feedback!');
+            viewProjectDetails(pid); // Refresh project view
+        } else {
+            const data = await res.json();
+            alert(data.message || 'Failed to submit rating');
+        }
+    } catch (err) {
+        alert('Server error while submitting rating');
+    }
+}
+
 // Global exports
 
 async function deleteProject(pid) {
@@ -1214,3 +1275,4 @@ window.setProjectDeadline = setProjectDeadline; window.openCapacityModal = openC
 window.deleteProject = deleteProject;
 window.updateFileName = (i) => { if (i.files.length) document.getElementById('fileUploadLabel').innerText = i.files[0].name; };
 window.openInviteModal = openInviteModal; window.acceptInvitation = acceptInvitation; window.rejectInvitation = rejectInvitation;
+window.openRateModal = openRateModal;

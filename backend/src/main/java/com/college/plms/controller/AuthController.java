@@ -1,10 +1,6 @@
 package com.college.plms.controller;
 
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
-
 import jakarta.validation.Valid;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,7 +11,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -51,7 +46,7 @@ public class AuthController {
     public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
 
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
+                new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getPassword()));
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
         String jwt = jwtUtils.generateJwtToken(authentication);
@@ -59,66 +54,62 @@ public class AuthController {
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();    
         String role = userDetails.getAuthorities().iterator().next().getAuthority();
 
-        // Fetch full name to return in response
         User user = userRepository.findById(userDetails.getId()).orElseThrow();
 
         return ResponseEntity.ok(new JwtResponse(jwt, 
                                                  userDetails.getId(), 
-                                                 userDetails.getUsername(), 
                                                  userDetails.getEmail(), 
                                                  role,
                                                  user.getFullName()));
     }
 
-    @PostMapping("/register")
-    public ResponseEntity<?> registerUser(@Valid @RequestBody SignupRequest signUpRequest) {
-        if (userRepository.existsByUsername(signUpRequest.getUsername())) {
-            return ResponseEntity
-                    .badRequest()
-                    .body(new MessageResponse("Error: Username is already taken!"));
-        }
-
+    @PostMapping("/register/student")
+    public ResponseEntity<?> registerStudent(@Valid @RequestBody SignupRequest signUpRequest) {
         if (userRepository.existsByEmail(signUpRequest.getEmail())) {
             return ResponseEntity
                     .badRequest()
                     .body(new MessageResponse("Error: Email is already in use!"));
         }
 
-        // Create new user's account
+        if (!signUpRequest.getPassword().equals(signUpRequest.getConfirmPassword())) {
+            return ResponseEntity
+                    .badRequest()
+                    .body(new MessageResponse("Error: Passwords do not match!"));
+        }
+
+        // Create new student account
         User user = new User();
-        user.setUsername(signUpRequest.getUsername());
         user.setEmail(signUpRequest.getEmail());
         user.setFullName(signUpRequest.getFullName());
-        user.setDepartment(signUpRequest.getDepartment());
         user.setPassword(encoder.encode(signUpRequest.getPassword()));
+        user.setRole(Role.STUDENT);
+        user.setStatus("ACTIVE");
         
-        String strRole = signUpRequest.getRole();
-        Role role;
-
-        if (strRole == null) {
-            role = Role.STUDENT; // Default
-        } else {
-            switch (strRole.toLowerCase()) {
-            case "admin":
-                role = Role.ADMIN;
-                break;
-            case "faculty":
-                role = Role.FACULTY;
-                break;
-            default:
-                role = Role.STUDENT;
-            }
-        }
-        
-        user.setRole(role);
         userRepository.save(user);
 
-        return ResponseEntity.ok(new MessageResponse("User registered successfully!"));
+        return ResponseEntity.ok(new MessageResponse("Student registered successfully!"));
     }
-    
-    @GetMapping("/users/faculty")
-    public ResponseEntity<?> getFacultyUsers() {
-        List<User> faculty = userRepository.findByRole(Role.FACULTY);
-        return ResponseEntity.ok(faculty);
+
+    @org.springframework.web.bind.annotation.GetMapping("/diagnose")
+    public ResponseEntity<?> diagnoseSystem() {
+        java.util.Map<String, Object> status = new java.util.HashMap<>();
+        try {
+            com.college.plms.model.User admin = userRepository.findByEmail("admin@plm.com").orElse(null);
+            status.put("adminUser", admin);
+            status.put("adminRole", admin != null ? admin.getRole() : "NULL");
+            status.put("totalUsers", userRepository.count());
+            try {
+                java.util.Map<Object, Long> roles = userRepository.findAll().stream()
+                    .collect(java.util.stream.Collectors.groupingBy(com.college.plms.model.User::getRole, java.util.stream.Collectors.counting()));
+                status.put("rolesDistribution", roles);
+            } catch (Exception ex) {
+                status.put("rolesError", ex.getMessage());
+            }
+            return ResponseEntity.ok(status);
+        } catch (Exception e) {
+            status.put("error", e.getMessage());
+            if (e.getStackTrace().length > 0) status.put("trace", e.getStackTrace()[0].toString());
+            return ResponseEntity.ok(status);
+        }
     }
 }

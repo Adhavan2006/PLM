@@ -11,13 +11,10 @@ public class User {
     private Long id;
 
     @Column(nullable = false, unique = true)
-    private String username;
+    private String email;
 
     @Column(nullable = false)
     private String password;
-
-    @Column(nullable = false, unique = true)
-    private String email;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -29,6 +26,15 @@ public class User {
     @Column(name = "department")
     private String department;
 
+    @Column(name = "specialization")
+    private String specialization;
+
+    @Column(name = "status")
+    private String status = "ACTIVE";
+
+    @Column(name = "max_projects")
+    private Integer maxProjects = 5;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -36,8 +42,6 @@ public class User {
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
-    public String getUsername() { return username; }
-    public void setUsername(String username) { this.username = username; }
     public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }
     public String getEmail() { return email; }
@@ -48,6 +52,12 @@ public class User {
     public void setFullName(String fullName) { this.fullName = fullName; }
     public String getDepartment() { return department; }
     public void setDepartment(String department) { this.department = department; }
+    public String getSpecialization() { return specialization; }
+    public void setSpecialization(String specialization) { this.specialization = specialization; }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+    public Integer getMaxProjects() { return maxProjects; }
+    public void setMaxProjects(Integer maxProjects) { this.maxProjects = maxProjects; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }

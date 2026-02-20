@@ -33,6 +33,10 @@
             <a href="#" class="nav-item" data-target="analytics-view" onclick="renderAnalytics()">
                 <ion-icon name="bar-chart-outline"></ion-icon> Analytics
             </a>
+            <a href="#" class="nav-item" id="adminSetupNav" data-target="admin-view" onclick="renderAdminSetup()"
+                style="display:none">
+                <ion-icon name="settings-outline"></ion-icon> Admin Setup
+            </a>
             <div class="spacer"></div>
             <a href="#" class="nav-item" onclick="logout()">
                 <ion-icon name="log-out-outline"></ion-icon> Logout
@@ -98,7 +102,15 @@
                     </div>
                     <div class="form-group">
                         <label>Description</label>
-                        <textarea id="projDesc" rows="4"></textarea>
+                        <textarea id="projDesc" rows="4" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Tech Stack (Suggested based on Domain)</label>
+                        <input type="text" id="projStack" placeholder="e.g. Python, TensorFlow, React">
+                    </div>
+                    <div class="form-group">
+                        <label>GitHub Repository URL</label>
+                        <input type="url" id="projGithub" placeholder="https://github.com/username/repo">
                     </div>
                     <button type="submit" class="btn-primary">Create Project</button>
                 </form>
@@ -125,7 +137,6 @@
                 </form>
             </div>
         </div>
-        </div>
 
         <div id="requestFacultyModal" class="modal hidden">
             <div class="modal-content">
@@ -144,6 +155,23 @@
             </div>
         </div>
 
+        <div id="assignFacultyModal" class="modal hidden">
+            <div class="modal-content">
+                <span class="close-btn" onclick="closeModal('assignFacultyModal')">&times;</span>
+                <h3>Assign Faculty</h3>
+                <form id="assignFacultyForm">
+                    <input type="hidden" id="assignProjectId">
+                    <div class="form-group">
+                        <label>Select Faculty</label>
+                        <select id="assignFacultySelect" required>
+                            <option value="">Loading...</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn-primary">Assign Faculty</button>
+                </form>
+            </div>
+        </div>
+
         <div id="submitProjectModal" class="modal hidden">
             <div class="modal-content">
                 <span class="close-btn" onclick="closeModal('submitProjectModal')">&times;</span>
@@ -155,8 +183,12 @@
                 <div style="display: flex; gap: 1rem;">
                     <button class="btn-primary" onclick="confirmSubmission()" style="background: var(--success)">Yes,
                         Submit</button>
-                    <button class="btn-primary" onclick="closeModal('submitProjectModal')"
-                        style="background: var(--bg-dark); border: 1px solid var(--border)">Cancel</button>
+                    <p>Are you sure you want to submit your project for review? Once submitted, you cannot make changes.
+                    </p>
+                    <div class="modal-actions">
+                        <button class="btn-primary" onclick="confirmSubmitProject()">Yes, Submit</button>
+                        <button class="btn-secondary" onclick="closeModal('submitProjectModal')">Cancel</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -165,10 +197,10 @@
             <div class="modal-content">
                 <span class="close-btn" onclick="closeModal('notificationModal')">&times;</span>
                 <h3>Notification</h3>
-                <div id="notificationDetail" class="notification-detail-content"></div>
-                <div style="margin-top: 1rem; text-align: right;">
-                    <button class="btn-sm" onclick="closeModal('notificationModal')">Close</button>
+                <div id="notifDate" style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
                 </div>
+                <p id="notifMessage" style="margin-bottom: 1.5rem;"></p>
+                <button class="btn-secondary" onclick="closeModal('notificationModal')">Close</button>
             </div>
         </div>
 
@@ -225,9 +257,89 @@
             </div>
         </div>
 
+        <div id="createFacultyModal" class="modal hidden">
+            <div class="modal-content">
+                <span class="close-btn" onclick="closeModal('createFacultyModal')">&times;</span>
+                <h3>Create Faculty Account</h3>
+                <form id="createFacultyForm">
+                    <div class="form-group">
+                        <label>Faculty Name</label>
+                        <input type="text" id="facFullName" required placeholder="Dr. Kumar">
+                    </div>
+                    <div class="form-group">
+                        <label>Email Address</label>
+                        <input type="email" id="facEmail" required placeholder="kumar@college.edu">
+                    </div>
+                    <div class="form-group">
+                        <label>Temporary Password</label>
+                        <input type="password" id="facPassword" required placeholder="temp123">
+                    </div>
+                    <div class="form-group">
+                        <label>Department</label>
+                        <input type="text" id="facDept" placeholder="e.g. CSE">
+                    </div>
+                    <div class="form-group">
+                        <label>Specialization Domains</label>
+                        <input type="text" id="facSpec" placeholder="AI, Web, IoT">
+                    </div>
+                    <div class="form-group">
+                        <label>Max Projects Capacity</label>
+                        <input type="number" id="facCapacity" value="5">
+                    </div>
+                    <button type="submit" class="btn-primary">Create Faculty</button>
+                </form>
+            </div>
+        </div>
+
+        <div id="deadlineModal" class="modal hidden">
+            <div class="modal-content" style="max-width: 400px;">
+                <span class="close-btn" onclick="closeModal('deadlineModal')">&times;</span>
+                <h3>Set Project Deadline</h3>
+                <form id="deadlineForm" onsubmit="setProjectDeadline(event)">
+                    <input type="hidden" id="deadlineProjectId">
+                    <div class="form-group">
+                        <label>Select Deadline Date & Time</label>
+                        <input type="datetime-local" id="deadlineInput" required>
+                    </div>
+                    <button type="submit" class="btn-primary">Set Deadline</button>
+                </form>
+            </div>
+        </div>
+
+        <div id="updateCapacityModal" class="modal hidden">
+            <div class="modal-content" style="max-width: 400px;">
+                <span class="close-btn" onclick="closeModal('updateCapacityModal')">&times;</span>
+                <h3>Update Faculty Capacity</h3>
+                <form id="updateCapacityForm">
+                    <input type="hidden" id="updateCapacityFacId">
+                    <div class="form-group">
+                        <label>New Project Limit</label>
+                        <input type="number" id="newCapacityInput" required min="1" max="20">
+                    </div>
+                    <button type="submit" class="btn-primary">Update Limit</button>
+                </form>
+            </div>
+        </div>
+
+        <div id="inviteMemberModal" class="modal hidden">
+            <div class="modal-content" style="max-width: 400px;">
+                <span class="close-btn" onclick="closeModal('inviteMemberModal')">&times;</span>
+                <h3>Invite Teammate</h3>
+                <p style="color:var(--text-secondary); margin-bottom:1rem">Enter the email of the student you want
+                    to invite.</p>
+                <form id="inviteMemberForm">
+                    <input type="hidden" id="inviteProjectId">
+                    <div class="form-group">
+                        <label>Student Email</label>
+                        <input type="email" id="inviteEmail" required placeholder="student@college.edu">
+                    </div>
+                    <button type="submit" class="btn-primary">Send Invitation</button>
+                </form>
+            </div>
+        </div>
     </main>
 
-    <script src="js/app.js"></script>
+    <script src="js/app.js?v=11"></script>
 </body>
 
 </html>

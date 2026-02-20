@@ -15,4 +15,5 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
     List<Project> findByStudentOrTeamMember(@Param("user") User user);
     
     List<Project> findByStageDeadlineBetween(java.time.LocalDateTime start, java.time.LocalDateTime end);
+    long countByStage(com.college.plms.model.ProjectStage stage);
 }

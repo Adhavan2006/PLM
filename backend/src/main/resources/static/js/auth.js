@@ -2,12 +2,12 @@ const API_URL = 'http://localhost:8080/api/auth';
 
 function switchTab(tab) {
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelector(`.tab-btn:nth-child(${tab === 'login' ? 1 : 2})`).classList.add('active');
-
     if (tab === 'login') {
+        document.getElementById('tabLogin').classList.add('active');
         document.getElementById('loginForm').classList.remove('hidden');
         document.getElementById('registerForm').classList.add('hidden');
     } else {
+        document.getElementById('tabRegister').classList.add('active');
         document.getElementById('loginForm').classList.add('hidden');
         document.getElementById('registerForm').classList.remove('hidden');
     }
@@ -16,14 +16,17 @@ function switchTab(tab) {
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const message = document.getElementById('authMessage');
-    const username = document.getElementById('loginUsername').value;
+    const email = document.getElementById('loginEmail').value;
     const password = document.getElementById('loginPassword').value;
 
     try {
+        message.textContent = 'Logging in...';
+        message.style.color = 'var(--accent)';
+
         const response = await fetch(`${API_URL}/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
+            body: JSON.stringify({ email, password })
         });
 
         const data = await response.json();
@@ -32,42 +35,51 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
             localStorage.setItem('user', JSON.stringify(data));
             window.location.href = 'dashboard.html';
         } else {
-            message.textContent = data.message || 'Login failed';
+            message.textContent = data.message || 'Login failed. Please check your credentials.';
             message.style.color = 'var(--danger)';
         }
     } catch (error) {
-        message.textContent = 'Server error';
+        message.textContent = 'Unable to connect to server. Please ensure the backend is running.';
+        message.style.color = 'var(--danger)';
     }
 });
 
 document.getElementById('registerForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const message = document.getElementById('authMessage');
-    const username = document.getElementById('regUsername').value;
     const email = document.getElementById('regEmail').value;
     const fullName = document.getElementById('regFullName').value;
-    const department = document.getElementById('regDept').value;
     const password = document.getElementById('regPassword').value;
-    const role = document.getElementById('regRole').value;
+    const confirmPassword = document.getElementById('regConfirmPassword').value;
+
+    if (password !== confirmPassword) {
+        message.textContent = 'Passwords do not match!';
+        message.style.color = 'var(--danger)';
+        return;
+    }
 
     try {
-        const response = await fetch(`${API_URL}/register`, {
+        message.textContent = 'Registering...';
+        message.style.color = 'var(--accent)';
+
+        const response = await fetch(`${API_URL}/register/student`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, email, fullName, department, password, role })
+            body: JSON.stringify({ email, fullName, password, confirmPassword })
         });
 
         const data = await response.json();
 
         if (response.ok) {
-            message.textContent = 'Registration successful! Please login.';
+            message.textContent = 'Registration successful! You can now login as a student.';
             message.style.color = 'var(--success)';
-            switchTab('login');
+            setTimeout(() => switchTab('login'), 2000);
         } else {
-            message.textContent = data.message;
+            message.textContent = data.message || 'Registration failed';
             message.style.color = 'var(--danger)';
         }
     } catch (error) {
-        message.textContent = 'Server error';
+        message.textContent = 'Server error. Please try again later.';
+        message.style.color = 'var(--danger)';
     }
 });

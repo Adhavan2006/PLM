@@ -18,18 +18,18 @@
             </div>
 
             <div class="tabs">
-                <button class="tab-btn active" onclick="switchTab('login')">Login</button>
-                <button class="tab-btn" onclick="switchTab('register')">Register</button>
+                <button class="tab-btn active" id="tabLogin" onclick="switchTab('login')">Login</button>
+                <button class="tab-btn" id="tabRegister" onclick="switchTab('register')">Student Register</button>
             </div>
 
             <form id="loginForm" class="auth-form">
                 <div class="form-group">
-                    <label>Username</label>
-                    <input type="text" id="loginUsername" required placeholder="Enter username">
+                    <label>Email Address</label>
+                    <input type="email" id="loginEmail" required placeholder="admin@plm.com">
                 </div>
                 <div class="form-group">
                     <label>Password</label>
-                    <input type="password" id="loginPassword" required placeholder="Enter password">
+                    <input type="password" id="loginPassword" required placeholder="••••••••">
                 </div>
                 <button type="submit" class="btn-primary">Login</button>
             </form>
@@ -37,33 +37,21 @@
             <form id="registerForm" class="auth-form hidden">
                 <div class="form-group">
                     <label>Full Name</label>
-                    <input type="text" id="regFullName" required placeholder="Full Name">
+                    <input type="text" id="regFullName" required placeholder="Enter your full name">
                 </div>
                 <div class="form-group">
-                    <label>Email</label>
-                    <input type="email" id="regEmail" required placeholder="Email Address">
-                </div>
-                <div class="form-group">
-                    <label>Department (e.g. CSE, ECE)</label>
-                    <input type="text" id="regDept" required placeholder="Department">
-                </div>
-                <div class="form-group">
-                    <label>Username</label>
-                    <input type="text" id="regUsername" required placeholder="Username">
-                </div>
-                <div class="form-group">
-                    <label>Role</label>
-                    <select id="regRole">
-                        <option value="STUDENT">Student</option>
-                        <option value="FACULTY">Faculty</option>
-                        <!-- Admin is strict, usually via DB insert -->
-                    </select>
+                    <label>Email Address</label>
+                    <input type="email" id="regEmail" required placeholder="your.email@gmail.com">
                 </div>
                 <div class="form-group">
                     <label>Password</label>
                     <input type="password" id="regPassword" required placeholder="Create password">
                 </div>
-                <button type="submit" class="btn-primary">Register</button>
+                <div class="form-group">
+                    <label>Confirm Password</label>
+                    <input type="password" id="regConfirmPassword" required placeholder="Confirm password">
+                </div>
+                <button type="submit" class="btn-primary">Register as Student</button>
             </form>
 
             <div id="authMessage" class="message"></div>

@@ -298,17 +298,58 @@ textarea:focus {
     padding: 1.5rem;
     border-radius: 12px;
     border: 1px solid var(--border);
+    transition: transform 0.2s, box-shadow 0.2s;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 }
 
 .stat-card h3 {
     color: var(--text-secondary);
-    font-size: 0.875rem;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
     margin-bottom: 0.5rem;
+    font-weight: 600;
 }
 
 .stat-card .value {
-    font-size: 2rem;
-    font-weight: 700;
+    font-size: 2.25rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.grid-cols-4 {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+}
+
+/* Responsive Grid for Charts */
+.analytics-chart-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+@media (max-width: 1024px) {
+
+    .grid-cols-4,
+    .grid-cols-3 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .analytics-chart-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* Projects Table */
@@ -500,5 +541,72 @@ th {
     background-position: right 1rem center;
     background-size: 1em;
 }
-.form-group select { background-color: var(--bg-dark); }
 
+.form-group select {
+    background-color: var(--bg-dark);
+}
+
+/* Timeline Component */
+.timeline {
+    position: relative;
+    padding: 1rem 0;
+    margin-top: 2rem;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 7px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--border);
+}
+
+.timeline-item {
+    position: relative;
+    padding-left: 2rem;
+    margin-bottom: 1.5rem;
+}
+
+.timeline-dot {
+    position: absolute;
+    left: 0;
+    top: 5px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--bg-card);
+    border: 3px solid var(--accent);
+    z-index: 1;
+}
+
+.timeline-content {
+    background: var(--bg-dark);
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+
+.timeline-time {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.25rem;
+}
+
+.timeline-msg {
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+
+/* Dashboard Enhancement */
+.grid-cols-2 {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+}
+
+canvas {
+    max-width: 100%;
+}

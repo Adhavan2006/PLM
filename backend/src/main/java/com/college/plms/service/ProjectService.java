@@ -3,6 +3,7 @@ package com.college.plms.service;
 import com.college.plms.model.*;
 import com.college.plms.repository.ApprovalRepository;
 import com.college.plms.repository.DocumentRepository;
+import com.college.plms.repository.GlobalSettingRepository;
 import com.college.plms.repository.ProjectRepository;
 import com.college.plms.repository.RatingRepository;
 import com.college.plms.repository.UserRepository;
@@ -39,17 +40,28 @@ public class ProjectService {
     @Autowired
     private NotificationService notificationService;
 
-    public Project createProject(String title, String description, String domain, User student) {
+    @Autowired
+    private GlobalSettingRepository globalSettingRepository;
+
+    @Autowired
+    private com.college.plms.repository.ActivityRepository activityRepository;
+
+    public Project createProject(String title, String description, String domain, String techStack, String githubUrl, User student) {
         Project project = new Project();
         project.setTitle(title);
         project.setDescription(description);
         project.setDomain(domain);
+        project.setTechStack(techStack);
+        project.setGithubUrl(githubUrl);
         project.setStudent(student);
         project.setStage(ProjectStage.IDEA);
         project.setStatus(ProjectStatus.PENDING);
         project.setStageDeadline(calculateDeadline(ProjectStage.IDEA));
         
         Project savedProject = projectRepository.save(project);
+        
+        // Record Activity
+        activityRepository.save(new com.college.plms.model.Activity(savedProject, "Project created with domain: " + domain));
         
         // Notify Student
         notificationService.createNotification(student, "Project '" + title + "' created successfully. Waiting for faculty assignment.");
@@ -77,6 +89,15 @@ public class ProjectService {
     public Project assignFaculty(Long projectId, Long facultyId) {
         Project project = getProjectById(projectId);
         User faculty = userRepository.findById(facultyId).orElseThrow(() -> new RuntimeException("Faculty not found"));
+        
+        // Capacity Check
+        long activeProjects = projectRepository.findByFaculty(faculty).stream()
+                .filter(p -> p.getStage() != ProjectStage.COMPLETED)
+                .count();
+        if (activeProjects >= faculty.getMaxProjects()) {
+            throw new RuntimeException("Faculty member has reached maximum project capacity (" + faculty.getMaxProjects() + ")");
+        }
+
         project.setFaculty(faculty);
         project.setIsFacultyAccepted(true); // Admin moves are auto-accepted
         Project saved = projectRepository.save(project);
@@ -92,9 +113,19 @@ public class ProjectService {
         Project project = getProjectById(projectId);
         User faculty = userRepository.findById(facultyId).orElseThrow(() -> new RuntimeException("Faculty not found"));
         
+        // Capacity Check
+        long activeProjects = projectRepository.findByFaculty(faculty).stream()
+                .filter(p -> p.getStage() != ProjectStage.COMPLETED)
+                .count();
+        if (activeProjects >= faculty.getMaxProjects()) {
+            throw new RuntimeException("Faculty member has reached maximum project capacity (" + faculty.getMaxProjects() + ")");
+        }
+
         project.setFaculty(faculty);
         project.setIsFacultyAccepted(false); // Pending acceptance
         Project saved = projectRepository.save(project);
+        
+        activityRepository.save(new com.college.plms.model.Activity(saved, "Student requested faculty: " + faculty.getFullName()));
         
         notificationService.createNotification(faculty, "Student requested you for project: " + project.getTitle());
         
@@ -112,6 +143,8 @@ public class ProjectService {
         project.setIsFacultyAccepted(true);
         Project saved = projectRepository.save(project);
         
+        activityRepository.save(new com.college.plms.model.Activity(saved, "Faculty " + saved.getFaculty().getFullName() + " accepted the request"));
+
         notificationService.createNotification(project.getStudent(), "Faculty " + project.getFaculty().getFullName() + " accepted your request.");
         
         return saved;
@@ -179,6 +212,8 @@ public class ProjectService {
         project.setStatus(ProjectStatus.SUBMITTED);
         Project saved = projectRepository.save(project);
         
+        activityRepository.save(new com.college.plms.model.Activity(saved, "Project submitted for review (Stage: " + saved.getStage() + ")"));
+
         // Notify faculty about submission
         notificationService.createNotification(
             project.getFaculty(), 
@@ -215,6 +250,9 @@ public class ProjectService {
         }
 
         Project saved = projectRepository.save(project);
+        
+        activityRepository.save(new com.college.plms.model.Activity(saved, "Stage " + approval.getStage() + " approved. Moved to " + saved.getStage()));
+
         notificationService.createNotification(project.getStudent(), "Project stage " + approval.getStage() + " approved! Moved to " + project.getStage());
         
         return saved;
@@ -287,13 +325,22 @@ public class ProjectService {
     
     public LocalDateTime calculateDeadline(ProjectStage stage) {
         LocalDateTime now = LocalDateTime.now();
+        String key = "DEADLINE_" + stage.name();
+        int days = globalSettingRepository.findBySettingKey(key)
+                .map(s -> Integer.parseInt(s.getSettingValue()))
+                .orElse(getDefaultDays(stage));
+        
+        return days > 0 ? now.plusDays(days) : null;
+    }
+
+    private int getDefaultDays(ProjectStage stage) {
         switch (stage) {
-            case IDEA: return now.plusDays(7);
-            case DESIGN: return now.plusDays(14);
-            case DEVELOPMENT: return now.plusDays(28);
-            case TESTING: return now.plusDays(14);
-            case SUBMISSION: return now.plusDays(7);
-            default: return null;
+            case IDEA: return 7;
+            case DESIGN: return 14;
+            case DEVELOPMENT: return 28;
+            case TESTING: return 14;
+            case SUBMISSION: return 7;
+            default: return 0;
         }
     }
 
@@ -309,9 +356,8 @@ public class ProjectService {
              throw new RuntimeException("Only the project owner can invite team members.");
         }
 
-        User invitee = userRepository.findByUsername(usernameOrEmail)
-                .or(() -> userRepository.findByEmail(usernameOrEmail))
-                .orElseThrow(() -> new RuntimeException("User not found with username or email: " + usernameOrEmail));
+        User invitee = userRepository.findByEmail(usernameOrEmail)
+            .orElseThrow(() -> new RuntimeException("User not found with email: " + usernameOrEmail));
 
         if (!invitee.getRole().name().equals("STUDENT")) {
              throw new RuntimeException("Only students can be invited to the team.");
@@ -381,5 +427,16 @@ public class ProjectService {
     
     public List<TeamInvitation> getPendingInvitations(User user) {
         return teamInvitationRepository.findByInviteeAndStatus(user, TeamInvitation.InvitationStatus.PENDING);
+    }
+
+    @Transactional
+    public void deleteProject(Long projectId) {
+        Project project = getProjectById(projectId);
+        documentRepository.deleteAll(documentRepository.findByProjectId(projectId));
+        activityRepository.deleteAll(activityRepository.findByProjectOrderByCreatedAtDesc(project));
+        approvalRepository.deleteAll(approvalRepository.findByProjectId(projectId));
+        ratingRepository.findByProjectId(projectId).ifPresent(ratingRepository::delete);
+        teamInvitationRepository.deleteAll(teamInvitationRepository.findByProject(project));
+        projectRepository.delete(project);
     }
 }

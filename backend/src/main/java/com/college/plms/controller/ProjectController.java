@@ -34,7 +34,7 @@ public class ProjectController {
     private RatingRepository ratingRepository;
 
     @PostMapping
-    @PreAuthorize("hasAuthority('STUDENT')")
+    @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<?> createProject(@RequestBody Map<String, String> payload, Authentication authentication) {
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
         User student = userRepository.findById(userDetails.getId()).orElseThrow();
@@ -43,6 +43,8 @@ public class ProjectController {
             payload.get("title"),
             payload.get("description"),
             payload.get("domain"),
+            payload.get("stack"),
+            payload.get("githubUrl"),
             student
         );
         return ResponseEntity.ok(project);
@@ -68,7 +70,7 @@ public class ProjectController {
     }
 
     @PostMapping("/{id}/upload")
-    @PreAuthorize("hasAuthority('STUDENT')")
+    @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<?> uploadDocument(@PathVariable Long id, @RequestParam("file") MultipartFile file) {
         Document document = projectService.uploadDocument(id, file);
         return ResponseEntity.ok(document);
@@ -93,7 +95,7 @@ public class ProjectController {
     }
 
     @PostMapping("/{id}/approve")
-    @PreAuthorize("hasAuthority('FACULTY')")
+    @PreAuthorize("hasRole('FACULTY')")
     public ResponseEntity<?> approveStage(@PathVariable Long id, @RequestBody Map<String, String> payload, Authentication authentication) {
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
         projectService.approveStage(id, userDetails.getId(), payload.get("remarks"));
@@ -101,7 +103,7 @@ public class ProjectController {
     }
 
     @PostMapping("/{id}/reject")
-    @PreAuthorize("hasAuthority('FACULTY')")
+    @PreAuthorize("hasRole('FACULTY')")
     public ResponseEntity<?> rejectStage(@PathVariable Long id, @RequestBody Map<String, String> payload, Authentication authentication) {
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
         projectService.rejectStage(id, userDetails.getId(), payload.get("remarks"));
@@ -109,7 +111,7 @@ public class ProjectController {
     }
     
     @PostMapping("/{id}/assign")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> assignFaculty(@PathVariable Long id, @RequestBody Map<String, Long> payload) {
         projectService.assignFaculty(id, payload.get("facultyId"));
         return ResponseEntity.ok("Faculty Assigned");
@@ -123,14 +125,14 @@ public class ProjectController {
     }
     
     @PostMapping("/{id}/request-faculty/{facultyId}")
-    @PreAuthorize("hasAuthority('STUDENT')")
+    @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<?> requestFaculty(@PathVariable Long id, @PathVariable Long facultyId) {
         projectService.requestFaculty(id, facultyId);
         return ResponseEntity.ok("Faculty requested successfully");
     }
 
     @PostMapping("/{id}/accept-faculty")
-    @PreAuthorize("hasAuthority('FACULTY')")
+    @PreAuthorize("hasRole('FACULTY')")
     public ResponseEntity<?> acceptFaculty(@PathVariable Long id, Authentication authentication) {
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
         try {
@@ -154,7 +156,7 @@ public class ProjectController {
     }
 
     @PostMapping("/{id}/submit")
-    @PreAuthorize("hasAuthority('STUDENT')")
+    @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<?> submitForReview(@PathVariable Long id) {
         try {
             projectService.submitForReview(id);
@@ -165,7 +167,7 @@ public class ProjectController {
     }
 
     @PostMapping("/{id}/rate")
-    @PreAuthorize("hasAuthority('FACULTY')")
+    @PreAuthorize("hasRole('FACULTY')")
     public ResponseEntity<?> rateProject(@PathVariable Long id, @RequestBody Map<String, Object> payload, Authentication authentication) {
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
         projectService.rateProject(id, (Integer)payload.get("rating"), (String)payload.get("feedback"), userDetails.getId());
@@ -181,7 +183,7 @@ public class ProjectController {
     private com.college.plms.repository.TeamInvitationRepository teamInvitationRepository;
 
     @PostMapping("/{id}/invite")
-    @PreAuthorize("hasAuthority('STUDENT')")
+    @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<?> sendInvitation(@PathVariable Long id, @RequestBody Map<String, String> payload, Authentication authentication) {
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
         try {
@@ -191,33 +193,11 @@ public class ProjectController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
-    
-    @PostMapping("/invitations/{invitationId}/accept")
-    public ResponseEntity<?> acceptInvitation(@PathVariable Long invitationId, Authentication authentication) {
-        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-        try {
-            projectService.acceptTeamInvitation(invitationId, userDetails.getId());
-            return ResponseEntity.ok("Invitation accepted");
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
-    }
-    
-    @PostMapping("/invitations/{invitationId}/reject")
-    public ResponseEntity<?> rejectInvitation(@PathVariable Long invitationId, Authentication authentication) {
-        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-        try {
-            projectService.rejectTeamInvitation(invitationId, userDetails.getId());
-            return ResponseEntity.ok("Invitation rejected");
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
-    }
-    
-    @GetMapping("/invitations/pending")
-    public ResponseEntity<?> getPendingInvitations(Authentication authentication) {
-        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-        User user = userRepository.findById(userDetails.getId()).orElseThrow();
-        return ResponseEntity.ok(projectService.getPendingInvitations(user));
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> deleteProject(@PathVariable Long id) {
+        projectService.deleteProject(id);
+        return ResponseEntity.ok(new com.college.plms.payload.response.MessageResponse("Project deleted successfully"));
     }
 }

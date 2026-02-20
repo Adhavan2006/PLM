@@ -18,6 +18,12 @@ public class DatabaseFixer implements CommandLineRunner {
             // This handles cases where they might have been created as restricted ENUMs by Hibernate
             jdbcTemplate.execute("ALTER TABLE projects MODIFY COLUMN status VARCHAR(50)");
             jdbcTemplate.execute("ALTER TABLE projects MODIFY COLUMN stage VARCHAR(50)");
+            try {
+                 jdbcTemplate.execute("ALTER TABLE projects ADD COLUMN github_url TEXT");
+                 System.out.println("Database schema fixed: github_url column added");
+            } catch (Exception e) {
+                 System.out.println("Column github_url likely already exists: " + e.getMessage());
+            }
             System.out.println("Database schema fixed: status and stage columns updated to VARCHAR(50)");
         } catch (Exception e) {
             // Ignore if table doesn't exist or other minor issues, but log it

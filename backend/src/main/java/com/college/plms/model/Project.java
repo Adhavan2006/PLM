@@ -20,6 +20,14 @@ public class Project {
 
     private String domain;
 
+    @Column(columnDefinition = "TEXT")
+    private String techStack;
+
+    @Column(columnDefinition = "TEXT")
+    private String githubUrl;
+
+    public String getGithubUrl() { return githubUrl; }
+    public void setGithubUrl(String githubUrl) { this.githubUrl = githubUrl; }
     @Enumerated(EnumType.STRING)
     @Column(length = 50, nullable = false)
     private ProjectStage stage;
@@ -69,6 +77,9 @@ public class Project {
     public void setDescription(String description) { this.description = description; }
     public String getDomain() { return domain; }
     public void setDomain(String domain) { this.domain = domain; }
+    public String getTechStack() { return techStack; }
+    public void setTechStack(String techStack) { this.techStack = techStack; }
+
     public ProjectStage getStage() { return stage; }
     public void setStage(ProjectStage stage) { this.stage = stage; }
     public ProjectStatus getStatus() { return status; }

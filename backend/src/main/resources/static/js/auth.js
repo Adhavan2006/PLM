@@ -1,5 +1,26 @@
 const API_URL = 'http://localhost:8080/api/auth';
 
+// Handle OAuth2 Redirect Token
+document.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+
+    if (token) {
+        const userData = {
+            accessToken: token,
+            id: urlParams.get('id'),
+            email: urlParams.get('email'),
+            role: urlParams.get('role'),
+            fullName: urlParams.get('name')
+        };
+
+        localStorage.setItem('user', JSON.stringify(userData));
+        // Clean URL and redirect to dashboard
+        window.history.replaceState({}, document.title, window.location.pathname);
+        window.location.href = 'dashboard.html';
+    }
+});
+
 function openAuthModal(tab) {
     const modal = document.getElementById('authModal');
     modal.classList.add('active');

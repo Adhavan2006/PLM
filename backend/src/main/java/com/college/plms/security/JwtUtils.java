@@ -7,7 +7,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Component;
+import java.util.stream.Collectors;
 
 import java.security.Key;
 import java.util.Date;
@@ -23,12 +26,27 @@ public class JwtUtils {
     private int jwtExpirationMs;
 
     public String generateJwtToken(Authentication authentication) {
+        String username;
+        String role;
 
-        UserDetailsImpl userPrincipal = (UserDetailsImpl) authentication.getPrincipal();
+        if (authentication.getPrincipal() instanceof UserDetailsImpl) {
+            UserDetailsImpl userPrincipal = (UserDetailsImpl) authentication.getPrincipal();
+            username = userPrincipal.getUsername();
+            role = userPrincipal.getAuthorities().iterator().next().getAuthority();
+        } else if (authentication.getPrincipal() instanceof OAuth2User) {
+            OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
+            username = oAuth2User.getAttribute("email");
+            role = authentication.getAuthorities().stream()
+                    .map(GrantedAuthority::getAuthority)
+                    .findFirst()
+                    .orElse("ROLE_STUDENT");
+        } else {
+            throw new IllegalArgumentException("Unsupported principal type");
+        }
 
         return Jwts.builder()
-                .setSubject((userPrincipal.getUsername()))
-                .claim("role", userPrincipal.getAuthorities().iterator().next().getAuthority()) // Add role to token
+                .setSubject(username)
+                .claim("role", role)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
                 .signWith(key(), SignatureAlgorithm.HS256)

@@ -13,6 +13,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import com.college.plms.security.oauth2.CustomOAuth2UserService;
+import com.college.plms.security.oauth2.OAuth2AuthenticationSuccessHandler;
 
 @Configuration
 @EnableMethodSecurity
@@ -22,6 +24,12 @@ public class SecurityConfig {
 
     @Autowired
     AuthEntryPointJwt unauthorizedHandler;
+
+    @Autowired
+    private CustomOAuth2UserService customOAuth2UserService;
+
+    @Autowired
+    private OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
 
     @Bean
     public AuthTokenFilter authenticationJwtTokenFilter() {
@@ -56,10 +64,17 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth ->
                         auth.requestMatchers("/api/auth/**").permitAll()
                                 .requestMatchers("/api/test/**").permitAll()
+                                .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                                 .requestMatchers("/error").permitAll()
                                 .requestMatchers("/").permitAll()
                                 .requestMatchers("/index.html", "/dashboard.html", "/css/**", "/js/**", "/assets/**", "/favicon.ico").permitAll()
                                 .anyRequest().authenticated()
+                )
+                .oauth2Login(oauth2 -> oauth2
+                        .userInfoEndpoint(userInfo -> userInfo
+                                .userService(customOAuth2UserService)
+                        )
+                        .successHandler(oAuth2AuthenticationSuccessHandler)
                 );
 
         http.authenticationProvider(authenticationProvider());

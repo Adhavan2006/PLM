@@ -337,6 +337,39 @@
                 </form>
             </div>
         </div>
+
+        <div id="rateProjectModal" class="modal hidden">
+            <div class="modal-content" style="max-width: 450px;">
+                <span class="close-btn" onclick="closeModal('rateProjectModal')">&times;</span>
+                <h3>Rate Project Review</h3>
+                <form id="rateProjectForm" onsubmit="submitProjectRating(event)">
+                    <input type="hidden" id="rateProjectId">
+                    <div class="form-group">
+                        <label>Rating (1-5 Stars)</label>
+                        <div class="rating-input"
+                            style="display: flex; gap: 0.5rem; font-size: 1.5rem; color: #fb923c; margin-bottom: 1rem;">
+                            <ion-icon name="star-outline" data-value="1" onclick="setRatingValue(1)"
+                                style="cursor:pointer"></ion-icon>
+                            <ion-icon name="star-outline" data-value="2" onclick="setRatingValue(2)"
+                                style="cursor:pointer"></ion-icon>
+                            <ion-icon name="star-outline" data-value="3" onclick="setRatingValue(3)"
+                                style="cursor:pointer"></ion-icon>
+                            <ion-icon name="star-outline" data-value="4" onclick="setRatingValue(4)"
+                                style="cursor:pointer"></ion-icon>
+                            <ion-icon name="star-outline" data-value="5" onclick="setRatingValue(5)"
+                                style="cursor:pointer"></ion-icon>
+                        </div>
+                        <input type="hidden" id="ratingValue" required value="5">
+                    </div>
+                    <div class="form-group">
+                        <label>Feedback / Remarks</label>
+                        <textarea id="ratingFeedback" rows="4" placeholder="Enter detailed feedback..."
+                            required></textarea>
+                    </div>
+                    <button type="submit" class="btn-primary">Submit Rating</button>
+                </form>
+            </div>
+        </div>
     </main>
 
     <script src="js/app.js?v=11"></script>

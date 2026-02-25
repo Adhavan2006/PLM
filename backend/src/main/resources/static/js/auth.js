@@ -1,15 +1,21 @@
 const API_URL = 'http://localhost:8080/api/auth';
 
+function openModal(id) {
+    document.getElementById(id).style.display = 'flex';
+    document.getElementById(id).classList.remove('hidden');
+}
+
+function closeModal(id) {
+    document.getElementById(id).style.display = 'none';
+}
+
 function switchTab(tab) {
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
     if (tab === 'login') {
-        document.getElementById('tabLogin').classList.add('active');
-        document.getElementById('loginForm').classList.remove('hidden');
-        document.getElementById('registerForm').classList.add('hidden');
+        closeModal('registerModal');
+        openModal('loginModal');
     } else {
-        document.getElementById('tabRegister').classList.add('active');
-        document.getElementById('loginForm').classList.add('hidden');
-        document.getElementById('registerForm').classList.remove('hidden');
+        closeModal('loginModal');
+        openModal('registerModal');
     }
 }
 
@@ -46,7 +52,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
 
 document.getElementById('registerForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const message = document.getElementById('authMessage');
+    const message = document.getElementById('authMessageReg');
     const email = document.getElementById('regEmail').value;
     const fullName = document.getElementById('regFullName').value;
     const password = document.getElementById('regPassword').value;
@@ -73,7 +79,10 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
         if (response.ok) {
             message.textContent = 'Registration successful! You can now login as a student.';
             message.style.color = 'var(--success)';
-            setTimeout(() => switchTab('login'), 2000);
+            setTimeout(() => {
+                closeModal('registerModal');
+                openModal('loginModal');
+            }, 2000);
         } else {
             message.textContent = data.message || 'Registration failed';
             message.style.color = 'var(--danger)';

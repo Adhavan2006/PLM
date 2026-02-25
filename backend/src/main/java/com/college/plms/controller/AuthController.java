@@ -80,6 +80,7 @@ public class AuthController {
         // Create new student account
         User user = new User();
         user.setEmail(signUpRequest.getEmail());
+        user.setUsername(signUpRequest.getEmail());
         user.setFullName(signUpRequest.getFullName());
         user.setPassword(encoder.encode(signUpRequest.getPassword()));
         user.setRole(Role.STUDENT);

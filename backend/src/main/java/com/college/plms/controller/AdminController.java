@@ -48,6 +48,7 @@ public class AdminController {
 
         User user = new User();
         user.setEmail(request.getEmail());
+        user.setUsername(request.getEmail());
         user.setFullName(request.getFullName());
         user.setPassword(encoder.encode(request.getPassword()));
         user.setRole(Role.FACULTY);
@@ -71,6 +72,7 @@ public class AdminController {
 
         User user = new User();
         user.setEmail(request.getEmail());
+        user.setUsername(request.getEmail());
         user.setFullName(request.getFullName());
         user.setPassword(encoder.encode(request.getPassword()));
         user.setRole(Role.ADMIN);

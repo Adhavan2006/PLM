@@ -15,33 +15,26 @@
         <div class="blob blob-2"></div>
         <div class="blob blob-3"></div>
     </div>
-    <nav class="top-nav">
-        <div class="nav-brand">PLMS</div>
-        <div class="nav-actions">
-            <button class="btn-ghost" onclick="openModal('loginModal')">Login</button>
-            <button class="btn-primary-sm" onclick="openModal('registerModal')">Get Started</button>
-        </div>
-    </nav>
-
     <div class="login-page-wrapper">
         <header class="hero-section">
             <div class="hero-badge">Mini Project Management</div>
             <h1>Transform Your Academic Journey</h1>
             <p>From the first spark of an idea to the final 5-star rating. <br> Manage your mini-projects like a pro.
             </p>
-            <div style="margin-top: 2rem;">
-                <button class="btn-primary" style="width: auto; padding: 1rem 2rem; font-size: 1.1rem;"
-                    onclick="openModal('registerModal')">Create Your First Project →</button>
-            </div>
         </header>
 
-        <div id="loginModal" class="modal hidden">
-            <div class="login-card modal-content" style="max-width: 450px;">
-                <span class="close-btn" onclick="closeModal('loginModal')">&times;</span>
+        <div class="login-container">
+            <div class="login-card">
                 <div class="login-header">
                     <h2>Welcome Back</h2>
                     <p>Log in to access your projects</p>
                 </div>
+
+                <div class="tabs">
+                    <button class="tab-btn active" id="tabLogin" onclick="switchTab('login')">Login</button>
+                    <button class="tab-btn" id="tabRegister" onclick="switchTab('register')">New Student</button>
+                </div>
+
                 <form id="loginForm" class="auth-form">
                     <div class="form-group">
                         <label>Email Address</label>
@@ -49,26 +42,12 @@
                     </div>
                     <div class="form-group">
                         <label>Password</label>
-                        <input type="password" id="loginPassword" required placeholder="••••••••">
+                        <input type="password" id="loginPassword" required placeholder="ΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇó">
                     </div>
                     <button type="submit" class="btn-primary">Sign In</button>
-                    <p style="text-align: center; margin-top: 1.5rem; color: var(--text-secondary); font-size: 0.9rem;">
-                        New here? <a href="#" onclick="switchTab('register'); return false;"
-                            style="color: var(--accent); font-weight: 600;">Create account</a>
-                    </p>
                 </form>
-                <div id="authMessage" class="message"></div>
-            </div>
-        </div>
 
-        <div id="registerModal" class="modal hidden">
-            <div class="login-card modal-content" style="max-width: 500px;">
-                <span class="close-btn" onclick="closeModal('registerModal')">&times;</span>
-                <div class="login-header">
-                    <h2>Create Account</h2>
-                    <p>Join the PLMS community today</p>
-                </div>
-                <form id="registerForm" class="auth-form">
+                <form id="registerForm" class="auth-form hidden">
                     <div class="form-group">
                         <label>Full Name</label>
                         <input type="text" id="regFullName" required placeholder="Enter your full name">
@@ -77,23 +56,18 @@
                         <label>Email Address</label>
                         <input type="email" id="regEmail" required placeholder="your.email@gmail.com">
                     </div>
-                    <div class="grid-2">
-                        <div class="form-group">
-                            <label>Password</label>
-                            <input type="password" id="regPassword" required placeholder="Create password">
-                        </div>
-                        <div class="form-group">
-                            <label>Confirm</label>
-                            <input type="password" id="regConfirmPassword" required placeholder="Confirm">
-                        </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="regPassword" required placeholder="Create password">
+                    </div>
+                    <div class="form-group">
+                        <label>Confirm Password</label>
+                        <input type="password" id="regConfirmPassword" required placeholder="Confirm password">
                     </div>
                     <button type="submit" class="btn-primary">Join PLMS</button>
-                    <p style="text-align: center; margin-top: 1.5rem; color: var(--text-secondary); font-size: 0.9rem;">
-                        Already have an account? <a href="#" onclick="switchTab('login'); return false;"
-                            style="color: var(--accent); font-weight: 600;">Log in</a>
-                    </p>
                 </form>
-                <div id="authMessageReg" class="message"></div>
+
+                <div id="authMessage" class="message"></div>
             </div>
         </div>
 

@@ -736,10 +736,27 @@ async function createFaculty(e) {
 async function viewProjectDetails(id) {
     const container = document.getElementById('viewContainer');
     try {
-        const [p, docs] = await Promise.all([
+        const [p, docs, ratingData] = await Promise.all([
             fetch(`${API_BASE}/projects/${id}`, { headers: authHeader() }).then(res => res.json()),
-            fetch(`${API_BASE}/projects/${id}/documents`, { headers: authHeader() }).then(res => res.json())
+            fetch(`${API_BASE}/projects/${id}/documents`, { headers: authHeader() }).then(res => res.json()),
+            fetch(`${API_BASE}/projects/${id}/rating`, { headers: authHeader() }).then(res => res.ok ? res.json() : null)
         ]);
+
+        let ratingHtml = '';
+        if (ratingData) {
+            ratingHtml = `
+                <div class="stat-card" style="margin-bottom: 2rem; border-left: 4px solid #fb923c;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <h4>Faculty Rating & Feedback</h4>
+                        <div style="color: #fb923c; font-size: 1.2rem;">
+                            ${'★'.repeat(ratingData.rating)}${'☆'.repeat(5 - ratingData.rating)}
+                        </div>
+                    </div>
+                    <p style="margin-top: 1rem; font-style: italic; color: var(--text-primary);">"${ratingData.feedback}"</p>
+                    <small style="margin-top: 0.5rem; color: var(--text-secondary);">Reviewed by ${ratingData.faculty.fullName} on ${new Date(ratingData.createdAt).toLocaleDateString()}</small>
+                </div>
+            `;
+        }
 
         container.innerHTML = `
             <div>
@@ -749,6 +766,8 @@ async function viewProjectDetails(id) {
                     <span class="status-badge status-${p.stage}">${p.stage}</span>
                 </div>
                 
+                ${ratingHtml}
+
                 <div class="grid-cols-3" style="margin-bottom: 2rem;">
                     <div class="stat-card"><strong>Domain</strong><div style="margin-top:0.5rem">${p.domain}</div></div>
                     <div class="stat-card"><strong>Status</strong><div style="margin-top:0.5rem">${p.status}</div></div>
@@ -805,8 +824,12 @@ async function viewProjectDetails(id) {
                         <button class="btn-primary" style="width: auto" onclick="approveStage(${p.id})">Approve Stage</button>
                         <button class="btn-sm" style="background: var(--danger); color: white;" onclick="rejectStage(${p.id})">Reject Stage</button>
                     ` : ''}
+
+                    ${getUserRole() === 'FACULTY' && p.stage === 'COMPLETED' && !ratingData ? `
+                        <button class="btn-primary" style="width: auto; background: #fb923c;" onclick="openRateModal(${p.id})">Finalize Rating</button>
+                    ` : ''}
                     
-                    ${getUserRole() === 'STUDENT' && p.student.id === user.id && p.stage !== 'COMPLETED' ? `
+                    ${getUserRole() === 'STUDENT' && p.student.id === user.id && p.stage === 'IDEA' ? `
                         <button class="btn-sm" style="background: var(--accent); color: white;" onclick="openInviteModal(${p.id})">Invite Teammate</button>
                     ` : ''}
                     
@@ -944,7 +967,14 @@ async function createProject(e) {
         githubUrl: document.getElementById('projGithub').value
     };
     const res = await fetch(`${API_BASE}/projects`, { method: 'POST', headers: authHeader(), body: JSON.stringify(body) });
-    if (res.ok) { closeModal('projectModal'); renderProjects(); showSuccessModal('Created', 'Project added!'); }
+    if (res.ok) {
+        closeModal('projectModal');
+        renderProjects();
+        showSuccessModal('Created', 'Project added!');
+    } else {
+        const data = await res.json();
+        showErrorModal('Creation Failed', data.message || 'Check your inputs or capacity.');
+    }
 }
 
 async function applyTemplate(domain) {
@@ -1214,3 +1244,53 @@ window.setProjectDeadline = setProjectDeadline; window.openCapacityModal = openC
 window.deleteProject = deleteProject;
 window.updateFileName = (i) => { if (i.files.length) document.getElementById('fileUploadLabel').innerText = i.files[0].name; };
 window.openInviteModal = openInviteModal; window.acceptInvitation = acceptInvitation; window.rejectInvitation = rejectInvitation;
+
+// Rating Logic
+function openRateModal(pid) {
+    document.getElementById('rateProjectId').value = pid;
+    setRatingValue(5); // Reset to 5 stars
+    document.getElementById('ratingFeedback').value = '';
+    openModal('rateProjectModal');
+}
+
+function setRatingValue(val) {
+    document.getElementById('ratingValue').value = val;
+    const stars = document.querySelectorAll('.rating-input ion-icon');
+    stars.forEach((s, idx) => {
+        if (idx < val) {
+            s.setAttribute('name', 'star');
+        } else {
+            s.setAttribute('name', 'star-outline');
+        }
+    });
+}
+
+async function submitProjectRating(e) {
+    e.preventDefault();
+    const pid = document.getElementById('rateProjectId').value;
+    const rating = parseInt(document.getElementById('ratingValue').value);
+    const feedback = document.getElementById('ratingFeedback').value;
+
+    try {
+        const res = await fetch(`${API_BASE}/projects/${pid}/rate`, {
+            method: 'POST',
+            headers: authHeader(),
+            body: JSON.stringify({ rating, feedback })
+        });
+
+        if (res.ok) {
+            closeModal('rateProjectModal');
+            showSuccessModal('Rated', 'Project review submitted!');
+            viewProjectDetails(pid); // Refresh details
+        } else {
+            const data = await res.json();
+            showErrorModal('Error', data.message || 'Failed to submit rating');
+        }
+    } catch (err) {
+        showErrorModal('Error', 'Server error during rating submission');
+    }
+}
+
+window.openRateModal = openRateModal;
+window.setRatingValue = setRatingValue;
+window.submitProjectRating = submitProjectRating;

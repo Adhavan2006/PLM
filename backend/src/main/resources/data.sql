@@ -1,14 +1,14 @@
 -- Admin User (password: admin123)
-INSERT INTO users (username, password, email, role, full_name) VALUES 
-('admin', '$2a$10$r.7g/D9.7X7X7X7X7X7X7.7X7X7X7X7X7X7X7X7X7', 'admin@college.edu', 'ADMIN', 'System Admin');
+INSERT INTO users (password, email, role, full_name) VALUES 
+('$2a$10$r.7g/D9.7X7X7X7X7X7X7.7X7X7X7X7X7X7X7X7X7', 'admin@college.edu', 'ADMIN', 'System Admin');
 
 -- Faculty User (password: faculty123)
-INSERT INTO users (username, password, email, role, full_name) VALUES 
-('faculty1', '$2a$10$r.7g/D9.7X7X7X7X7X7X7.7X7X7X7X7X7X7X7X7X7', 'faculty1@college.edu', 'FACULTY', 'Dr. Smith');
+INSERT INTO users (password, email, role, full_name) VALUES 
+('$2a$10$r.7g/D9.7X7X7X7X7X7X7.7X7X7X7X7X7X7X7X7X7', 'faculty1@college.edu', 'FACULTY', 'Dr. Smith');
 
 -- Student User (password: student123)
-INSERT INTO users (username, password, email, role, full_name) VALUES 
-('student1', '$2a$10$r.7g/D9.7X7X7X7X7X7X7.7X7X7X7X7X7X7X7X7X7', 'student1@college.edu', 'STUDENT', 'Alice Student');
+INSERT INTO users (password, email, role, full_name) VALUES 
+('$2a$10$r.7g/D9.7X7X7X7X7X7X7.7X7X7X7X7X7X7X7X7X7', 'student1@college.edu', 'STUDENT', 'Alice Student');
 
 -- Note: The bcrypt hashes above are placeholders. In a real scenario, use a BCrypt generator.
 -- For local testing with "password", use: $2a$10$Dow.d93k.1..1..1..1..1..1.

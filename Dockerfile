@@ -6,7 +6,7 @@ COPY backend/src backend/src
 RUN mvn -f backend/pom.xml clean package -DskipTests
 
 # Run stage
-FROM openjdk:17-jdk-slim
+FROM eclipse-temurin:17-jdk-alpine
 WORKDIR /app
 COPY --from=build /app/backend/target/plms-0.0.1-SNAPSHOT.jar app.jar
 RUN mkdir -p /app/uploads
